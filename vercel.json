@@ -2,9 +2,7 @@
   "version": 2,
   "installCommand": "npm install",
   "outputDirectory": ".",
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/(.*\\.(html|css|js|png|jpg|svg|ico|webmanifest|json))", "dest": "/$1" },
-    { "src": "/(?!api/).*", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
