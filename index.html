@@ -3485,10 +3485,13 @@ async function salvarProjetoNuvem() {
 async function initAuth() {
   if (API_TOKEN && localStorage.getItem("chatweb_user_email")) {
     USUARIO = { email: localStorage.getItem("chatweb_user_email"), nome: localStorage.getItem("chatweb_user_nome") || "" };
-    onLogado();
-  } else {
-    mostrarLogin();
+    try {
+      const dados = await apiCall("GET", "fluxos");
+      if (dados && !dados.erro) { onLogado(); return; }
+    } catch (e) {}
+    API_TOKEN = null; localStorage.removeItem("chatweb_api_token");
   }
+  mostrarLogin();
 }
 async function sairConta() { API_TOKEN = null; localStorage.removeItem("chatweb_api_token"); location.reload(); }
 
