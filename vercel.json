@@ -2,7 +2,12 @@
   "version": 2,
   "installCommand": "npm install",
   "buildCommand": "node build.js",
-  "outputDirectory": ".vercel/output",
+  "rewrites": [
+    {
+      "source": "/((?!api/)[^.]+)",
+      "destination": "/index.html"
+    }
+  ],
   "functions": {
     "api/auth.js": { "runtime": "@vercel/node@3" },
     "api/fluxos.js": { "runtime": "@vercel/node@3" },
