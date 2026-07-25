@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const { sql } = require("./db");
+const { sql } = require("./_db");
 
 const SECRET = process.env.JWT_SECRET || "fallback-secret";
 
