@@ -855,7 +855,7 @@
   <div class="ed-actions" id="edActions">
     <button class="btn green"  id="btnSalvar">💾 Salvar</button>
     <button class="btn teal"   id="btnTestar">👁 Testar</button>
-    <button class="btn gray"   id="btnLink">🔗 Link do cliente</button>
+    <button class="btn gray"   id="btnLink">🔗 Link do funil</button>
     <button class="btn gray"   id="btnCodigo">📋 Código</button>
     <button class="btn red"    id="btnPadrao">↺ Padrão</button>
   </div>
@@ -1392,7 +1392,7 @@ function renderFluxoItem(f, idx) {
   item.appendChild(h("div", { class: "fc-acoes" },
     h("button", { class: "btn sm green", onclick: () => abrirEditorFluxo(f.id) }, "✏️ Editar"),
     h("button", { class: "btn sm gray", onclick: () => { PROJETO.atual = f.id; aplicarAtivo(); salvarProjeto(); fecharEditor(); reiniciarChat(); toast("👁 Testando…"); } }, "👁 Testar"),
-    h("button", { class: "btn sm green", onclick: () => abrirLinkCliente(f) }, "🔗 Link do cliente"),
+    h("button", { class: "btn sm green", onclick: () => abrirLinkCliente(f) }, "🔗 Link do funil"),
     h("button", { class: "btn sm gray", title: "Duplicar", onclick: () => duplicarFluxo(idx) }, "⧉"),
     h("button", { class: "btn sm gray", title: "Renomear", onclick: () => renomearFluxo(idx) }, "✎"),
     h("button", { class: "btn sm red", title: "Excluir", onclick: () => excluirFluxo(idx) }, "🗑")
@@ -1496,7 +1496,7 @@ async function mostrarLinkFluxo(f) {
     f.publicado = true; salvarProjeto();
     const slug = f.slug || "";
     const link = slug ? base + "/" + slug : base + "?f=" + f.id;
-    abrirModal("🔗 Link do cliente",
+    abrirModal("🔗 Link do funil",
       'Link do fluxo "' + (f.nome || "") + '". Mande para o cliente — quem abrir vê só o chat. 📲\n\n✅ Fica sempre atualizado: se você editar o fluxo, o link continua o mesmo.',
       link);
     return;
@@ -1505,7 +1505,7 @@ async function mostrarLinkFluxo(f) {
   const link = base + "?f=" + encodeDados({ config: f.config, blocos: f.blocos });
   let aviso = 'Link do fluxo "' + (f.nome || "") + '". Mande para o cliente. Quem abrir vê só o chat.';
   if (link.length > 8000) aviso += "\n\n⚠️ Ficou grande (áudio/imagem embutidos). Entre na sua conta para gerar o link CURTO.";
-  abrirModal("🔗 Link do cliente", aviso, link);
+  abrirModal("🔗 Link do funil", aviso, link);
 }
 
 // Publica o fluxo na nuvem (protegido) e gera o CÓDIGO DE INCORPORAÇÃO (embed),
@@ -1522,7 +1522,7 @@ async function publicarNoDominio(f) {
     '<title>' + (f.config && f.config.empresa ? f.config.empresa : "Atendimento") + '</title>\n' +
     '<style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%}</style></head>\n' +
     '<body>\n  <iframe src="' + url + '" allow="clipboard-write; autoplay"></iframe>\n</body></html>';
-  abrirModal("🔗 Link do cliente — no seu domínio",
+  abrirModal("🔗 Link do funil — no seu domínio",
     'Para atender clientes de verdade, o funil vai no SEU domínio (não no link do ChatWeb). Em 3 toques:\n\n1) ⬇️ Baixe o arquivo pronto (botão abaixo).\n2) 🌐 Abra o Cloudflare Pages → "Create" → "Upload assets" e arraste o arquivo baixado.\n3) Nas configurações do projeto, ligue o seu domínio. Pronto — no ar no SEU endereço!\n\n🔒 O arquivo só "chama" o seu chat no ChatWeb: o fluxo fica protegido, ninguém copia, e você pode cortar se a assinatura cancelar.\n(Se preferir, dá pra copiar o código à mão no campo abaixo.)',
     embed,
     { baixar: { label: "⬇️ Baixar arquivo pronto", filename: "index.html", content: embed },
@@ -1931,60 +1931,28 @@ function dropdownMenu(anchor, itens) {
   const close = e => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener("mousedown", close); } };
   setTimeout(() => document.addEventListener("mousedown", close), 0);
 }
-// "Link do cliente": guia pro domínio próprio (Cloudflare) e mostra o link pronto se já tiver
+// "Link do funil": mostra o link com slug baseado no domínio atual
 function abrirLinkCliente(f) {
   if (USUARIO) {
     f.publicado = true; salvarProjeto();
   }
   const slug = f.slug || "";
-  const alvoSlug = location.origin + location.pathname + "/" + (slug || f.id);
-  const alvoQuery = location.origin + location.pathname + "?f=" + f.id;
-  const alvo = slug ? alvoSlug : alvoQuery;
-  const embed =
-    '<!DOCTYPE html>\n<html lang="pt-BR"><head><meta charset="utf-8">\n' +
-    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' +
-    '<title>' + (f.config && f.config.empresa ? f.config.empresa : "Atendimento") + '</title>\n' +
-    '<style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%}</style></head>\n' +
-    '<body>\n  <iframe src="' + alvo + '" allow="clipboard-write; autoplay"></iframe>\n</body></html>';
+  const dominio = location.origin;
+  const url = slug ? dominio + "/" + slug : dominio + "?f=" + f.id;
+  const avisoSlug = !slug ? "\n\n💡 Adicione um slug nas configurações do funil para ter um link limpo tipo " + dominio + "/seu-slug" : "";
 
   const bg = h("div", { class: "modal-bg aberto" });
   const box = h("div", { class: "modal", style: "max-width:480px;text-align:left" });
   const fechar = () => bg.remove();
-  box.appendChild(h("h3", null, "🔗 Link do cliente"));
-  box.appendChild(h("p", { html: 'Para atender clientes, o funil fica no <b>SEU domínio</b> (assim ninguém copia o seu fluxo). <b>Já tem domínio?</b> Cole abaixo e pegue o link pronto. <b>Ainda não?</b> Crie um grátis no Cloudflare (botões embaixo).' }));
-  box.appendChild(h("label", { style: "display:block;font-size:12.5px;font-weight:700;color:#445;margin:8px 0 4px" }, "Seu domínio (se já tiver):"));
-  const domInput = h("input", { class: "ed-input", placeholder: "ex: meufunil.com.br", value: (PROJETO.dominio || "") });
-  box.appendChild(domInput);
-  const ready = h("div", { style: "margin-top:10px" });
-  box.appendChild(ready);
-  const limparDom = v => (v || "").trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "").replace(/\s/g, "");
-  function atualizar() {
-    const d = limparDom(domInput.value);
-    ready.innerHTML = "";
-    if (d) {
-      PROJETO.dominio = d; salvarProjeto();
-      const slugPart = slug ? "/" + slug : "";
-      const url = "https://" + d + slugPart;
-      ready.appendChild(h("div", { style: "font-size:13px;font-weight:700;color:#B8860B;margin-bottom:4px" }, "✅ Link pronto pra mandar pro cliente:"));
-      const ta = document.createElement("textarea"); ta.readOnly = true; ta.value = url;
-      ta.style.cssText = "width:100%;min-height:44px;border:1px solid #e0e3e9;border-radius:8px;padding:8px;font-family:monospace;font-size:13px;background:#f6f7f9;color:#111b21";
-      ready.appendChild(ta);
-      ready.appendChild(h("button", { class: "btn teal", style: "margin-top:6px", onclick: () => { ta.select(); try { document.execCommand("copy"); } catch (e) {} if (navigator.clipboard) navigator.clipboard.writeText(url); toast("📋 Link copiado!"); } }, "📋 Copiar link"));
-      ready.appendChild(h("div", { class: "aviso", style: "margin-top:6px" }, "Confira que você colou o arquivo (⬇️ abaixo) na página inicial desse domínio."));
-    } else {
-      ready.appendChild(h("div", { class: "aviso" }, "Sem domínio ainda? Baixe o arquivo e crie um grátis no Cloudflare (botões abaixo). Quando tiver o domínio, volte aqui e cole ele pra ver o link pronto."));
-    }
-  }
-  domInput.oninput = atualizar;
-  atualizar();
+  box.appendChild(h("h3", null, "🔗 Link do funil"));
+  box.appendChild(h("p", { style: "font-size:14px;color:#556;line-height:1.5" }, "Compartilhe este link com seus clientes. " + (slug ? "O slug personalizado já está configurado!" : "Configure um slug nas configurações do funil para ter um link mais limpo.")));
 
-  const acoes = h("div", { class: "modal-actions", style: "flex-wrap:wrap" });
-  acoes.appendChild(h("button", { class: "btn teal", onclick: () => {
-    const blob = new Blob([embed], { type: "text/html" }); const u = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = u; a.download = "index.html"; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(u), 2000); toast("⬇️ Arquivo baixado! Suba no seu domínio.");
-  } }, "⬇️ Baixar arquivo"));
-  acoes.appendChild(h("a", { class: "btn teal", href: "https://pages.cloudflare.com/", target: "_blank", rel: "noopener", style: "text-decoration:none;display:inline-flex;align-items:center" }, "🌐 Criar domínio (Cloudflare)"));
+  const ta = document.createElement("textarea"); ta.readOnly = true; ta.value = url;
+  ta.style.cssText = "width:100%;min-height:44px;border:1px solid #e0e3e9;border-radius:8px;padding:8px;font-family:monospace;font-size:13px;background:#f6f7f9;color:#111b21;margin:8px 0";
+  box.appendChild(ta);
+
+  const acoes = h("div", { class: "modal-actions", style: "flex-wrap:wrap;gap:8px" });
+  acoes.appendChild(h("button", { class: "btn teal", onclick: () => { ta.select(); try { document.execCommand("copy"); } catch (e) {} if (navigator.clipboard) navigator.clipboard.writeText(url); toast("📋 Link copiado!"); } }, "📋 Copiar link"));
   acoes.appendChild(h("button", { class: "btn gray", onclick: fechar }, "Fechar"));
   box.appendChild(acoes);
   bg.appendChild(box);
@@ -2026,7 +1994,7 @@ function funisTable(stats) {
     tr2.appendChild(h("td", null, h("div", { class: "acts" },
       actBtn("pencil", "Editar", () => abrirEditorFluxo(f.id)),
       actBtn("play", "Testar", () => { PROJETO.atual = f.id; aplicarAtivo(); salvarProjeto(); fecharEditor(); reiniciarChat(); toast("👁 Testando…"); }),
-      actBtn("link", "Link do cliente", () => abrirLinkCliente(f)),
+      actBtn("link", "Link do funil", () => abrirLinkCliente(f)),
       actBtn("more", "Mais opções", e => dropdownMenu(e.currentTarget, [
         { label: "⧉  Duplicar", go: () => duplicarFluxo(idx) },
         { label: "✎  Renomear", go: () => renomearFluxo(idx) },
@@ -2310,7 +2278,7 @@ async function renderMetricas() {
 
   if (!dados.length) {
     card.appendChild(h("div", { style: "color:#8a97a0;font-size:14px;padding:6px 2px;line-height:1.5" },
-      "Ainda não há dados. Gere um 🔗 Link do cliente (novo) e compartilhe — as visitas aparecem aqui automaticamente."));
+      "Ainda não há dados. Gere um 🔗 Link do funil (novo) e compartilhe — as visitas aparecem aqui automaticamente."));
     return;
   }
   if (!dadosF.length) {
@@ -2869,7 +2837,7 @@ function renderSuporte() {
   faq.appendChild(h("h2", null, "Duvidas frequentes"));
   var perguntas = [
     { p: "Como crio um novo funil?", r: "Clique em Novo funil no topo do painel. Voce pode adicionar blocos de texto, imagem, audio, botoes e perguntas." },
-    { p: "Como publico meu funil?", r: "No editor, clique em Link do cliente para copiar o link. Compartilhe com seus clientes." },
+    { p: "Como publico meu funil?", r: "No editor, clique em Link do funil para copiar o link. Compartilhe com seus clientes." },
     { p: "Como conecto o WhatsApp?", r: "Va em Integracoes e preencha o endereco do seu bot (criado no Railway)." },
     { p: "Onde vejo as respostas dos clientes?", r: "Va em Respostas no menu lateral." },
     { p: "Como baixo os dados em CSV?", r: "Na pagina de Respostas ou Contatos, clique em Baixar CSV." }
@@ -3072,7 +3040,7 @@ function renderEditor() {
     h("button", { class: "btn green", onclick: () => clicarAcao("btnSalvar") }, "💾 Salvar"));
   if (!ehAtend) {
     toolbar.appendChild(h("button", { class: "btn teal", onclick: () => clicarAcao("btnTestar") }, "👁 Testar"));
-    toolbar.appendChild(h("button", { class: "btn gray", onclick: () => { salvar(true); const f = PROJETO.fluxos.find(x => x.id === fluxoEditandoId); if (f) abrirLinkCliente(f); } }, "🔗 Link do cliente"));
+    toolbar.appendChild(h("button", { class: "btn gray", onclick: () => { salvar(true); const f = PROJETO.fluxos.find(x => x.id === fluxoEditandoId); if (f) abrirLinkCliente(f); } }, "🔗 Link do funil"));
   }
   toolbar.appendChild(h("button", { class: "btn red", onclick: () => clicarAcao("btnPadrao") }, "↺ Padrão"));
   content.appendChild(toolbar);
@@ -3294,7 +3262,7 @@ document.getElementById("btnLink").onclick = () => {
   let aviso = "Este link já leva este fluxo montado. Mande para o cliente. Quem abrir vê só o chat. Publique o site (Netlify/GitHub Pages/Vercel) para funcionar fora do seu PC.";
   if (!slug && link.length > 8000) aviso += "\n\n⚠️ Ficou grande (áudio/imagem embutidos) e pode não abrir em alguns celulares. Prefira 'cole a URL' nos blocos, ou o botão 📋 Código.";
   if (!slug) aviso += "\n\n💡 Dica: adicione um slug nas configurações do funil pra ter um link limpo tipo dominio.com.br/slug";
-  abrirModal("🔗 Link do cliente", aviso, link);
+  abrirModal("🔗 Link do funil", aviso, link);
 };
 document.getElementById("btnCodigo").onclick = () => {
   salvar(true);
@@ -3742,7 +3710,7 @@ function mostrarAvisoTeste() {
   if (document.getElementById("avisoTeste")) return;
   const b = document.createElement("div"); b.id = "avisoTeste";
   b.style.cssText = "position:absolute;left:10px;right:10px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:30;background:#fff8e1;color:#664d03;border:1px solid #ffe08a;border-radius:10px;padding:8px 12px;font-size:12px;line-height:1.4;box-shadow:0 6px 18px rgba(0,0,0,.18)";
-  b.innerHTML = "🧪 <b>Prévia de teste.</b> Para atender clientes de verdade, publique este funil no <b>seu próprio domínio</b> (botão “🔗 Link do cliente” no painel).";
+  b.innerHTML = "🧪 <b>Prévia de teste.</b> Para atender clientes de verdade, publique este funil no <b>seu próprio domínio</b> (botão “🔗 Link do funil” no painel).";
   const phone = document.querySelector(".phone"); if (phone) phone.appendChild(b);
 }
 
