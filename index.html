@@ -890,7 +890,8 @@ const CONFIG_PADRAO = {
   avatarLetra: "S",
   avatarFoto: "",
   whatsapp: "5511999999999",
-  linkPagamento: "https://pay.exemplo.com/seu-link",
+  linkPagamento: "",
+  linksPagamento: [],
   velocidadeDigitando: 1100,
   rastreioURL: ""
 };
@@ -1224,7 +1225,17 @@ function mostrarBotao(b) {
 }
 function clicarBotao(b) {
   let destino = "";
-  if (b.destino === "pagamento") { destino = CONFIG.linkPagamento; track("clicou_pagamento"); }
+  if (b.destino === "pagamento") {
+    var linksPag = CONFIG.linksPagamento || [];
+    if (linksPag.length) {
+      var idx = b.linkPagamentoIdx || 0;
+      if (idx < 0 || idx >= linksPag.length) idx = 0;
+      destino = linksPag[idx] ? linksPag[idx].url : CONFIG.linkPagamento;
+    } else {
+      destino = CONFIG.linkPagamento;
+    }
+    track("clicou_pagamento");
+  }
   else if (b.destino === "whatsapp") { destino = "https://wa.me/" + CONFIG.whatsapp + "?text=" + encodeURIComponent("Olá! Vim pelo atendimento e gostaria de falar."); track("clicou_whatsapp"); }
   else { destino = b.link || "#"; track("clicou_link"); }
   if (destino && destino !== "#") window.open(destino, "_blank");
@@ -2684,7 +2695,13 @@ async function renderConversa(sessao) {
       else if (b.tipo === "imagem") texto = b.img;
       else if (b.tipo === "audio") texto = b.audio;
       else if (b.tipo === "botao") {
-        if (b.destino === "pagamento") texto = "💳 " + (b.text || "Pagar agora") + "\n" + (cfg.linkPagamento || "");
+        if (b.destino === "pagamento") {
+          var linksPag = cfg.linksPagamento || [];
+          var idx = b.linkPagamentoIdx || 0;
+          if (idx < 0 || idx >= linksPag.length) idx = 0;
+          var nomePag = linksPag[idx] ? linksPag[idx].nome || "Link " + (idx + 1) : "Link de pagamento";
+          texto = "💳 " + (b.text || "Pagar agora") + " → " + nomePag;
+        }
         else if (b.destino === "whatsapp") texto = "💬 " + (b.text || "Falar no WhatsApp") + "\nhttps://wa.me/" + (cfg.whatsapp || "");
         else if (b.destino === "link") texto = (b.text || "Abrir") + "\n" + (b.link || "");
         else texto = null; // atendente: ignora (já está no atendimento)
@@ -2807,10 +2824,6 @@ async function renderConfiguracoes() {
   var inpWhats = h("input", { class: "ed-input", type: "tel", value: CONFIG.whatsapp || "", placeholder: "5511999999999" });
   perfilGrid.appendChild(h("div", null, lblWhats, inpWhats));
 
-  var lblLink = h("label", { style: "font-size:12px;font-weight:500;color:rgba(255,255,255,.6);margin-bottom:4px;display:block" }, "Link de pagamento");
-  var inpLink = h("input", { class: "ed-input", type: "url", value: CONFIG.linkPagamento || "", placeholder: "https://payseudominio.com/link" });
-  perfilGrid.appendChild(h("div", null, lblLink, inpLink));
-
   var lblDominio = h("label", { style: "font-size:12px;font-weight:500;color:rgba(255,255,255,.6);margin-bottom:4px;display:block" }, "Seu domínio personalizado");
   var inpDominio = h("input", { class: "ed-input", type: "text", value: savedDominio, placeholder: "ex: atendimento.seusite.com.br" });
   var domHint = h("div", { style: "font-size:11.5px;color:#8a97a0;margin-top:4px;line-height:1.4" }, "Aponte o DNS do seu domínio para CNAME " + location.hostname + " e ele aparecerá automaticamente nos links dos seus funis.");
@@ -2822,7 +2835,6 @@ async function renderConfiguracoes() {
     localStorage.setItem("chatweb_user_tipo", selTipo.value);
     CONFIG.empresa = inpEmpresa.value.trim() || CONFIG.empresa;
     CONFIG.whatsapp = inpWhats.value.trim();
-    CONFIG.linkPagamento = inpLink.value.trim();
     CONFIG.avatarLetra = (inpNomeExib.value.trim() || savedNome).charAt(0).toUpperCase();
     PROJETO.dominio = inpDominio.value.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "").replace(/\s/g, "");
     var f = fluxoAtual(); if (f) { f.config = clone(CONFIG); salvarLocal(); }
@@ -3211,7 +3223,25 @@ function renderEditor() {
     h("div", { style: "display:flex;gap:12px;align-items:flex-start;margin-top:4px" }, avImg, avCtrl)));
   if (!ehAtend) cCard.appendChild(campo("Letra do avatar", cfg.avatarLetra, v => cfg.avatarLetra = v, "(usada quando não há foto)"));
   cCard.appendChild(campo("WhatsApp (DDI+DDD, só números)", cfg.whatsapp, v => cfg.whatsapp = v, ehAtend ? "(usado nos botões de WhatsApp)" : ""));
-  cCard.appendChild(campo("🔗 Link de pagamento", cfg.linkPagamento, v => cfg.linkPagamento = v, ehAtend ? "(usado no botão de pagamento)" : ""));
+
+  if (!cfg.linksPagamento) cfg.linksPagamento = [];
+  var pagSection = h("div", { class: "fld", style: "margin-top:8px" });
+  pagSection.appendChild(h("label", null, "Links de pagamento"));
+  pagSection.appendChild(h("div", { class: "hint", style: "margin-bottom:8px" }, "Adicione quantos links quiser. Cada botão de pagamento no fluxo pode usar um diferente."));
+  var pagList = h("div", { style: "display:flex;flex-direction:column;gap:6px" });
+  cfg.linksPagamento.forEach(function(lnk, idx) {
+    var row = h("div", { style: "display:flex;gap:6px;align-items:center" });
+    var inpNome = h("input", { class: "ed-input", value: lnk.nome || "", placeholder: "Nome (ex: Link 47)", style: "flex:1", oninput: function(e) { lnk.nome = e.target.value; } });
+    var inpUrl = h("input", { class: "ed-input", value: lnk.url || "", placeholder: "https://...", style: "flex:2", oninput: function(e) { lnk.url = e.target.value; } });
+    var btnRem = h("button", { class: "btn sm red", onclick: function() { cfg.linksPagamento.splice(idx, 1); renderEditor(); } }, "✕");
+    row.appendChild(inpNome); row.appendChild(inpUrl); row.appendChild(btnRem);
+    pagList.appendChild(row);
+  });
+  pagSection.appendChild(pagList);
+  var btnAddLink = h("button", { class: "btn sm gray", style: "margin-top:8px", onclick: function() { cfg.linksPagamento.push({ nome: "", url: "" }); renderEditor(); } }, "＋ Adicionar link de pagamento");
+  pagSection.appendChild(btnAddLink);
+  cCard.appendChild(pagSection);
+
   if (!ehAtend) cCard.appendChild(campo("📊 URL de rastreamento (Apps Script)", cfg.rastreioURL, v => cfg.rastreioURL = v, "(deixe vazio p/ desligar)"));
   content.appendChild(cCard);
 
@@ -3268,9 +3298,20 @@ function renderBloco(b, i) {
     if (b.destino === "link") {
       card.appendChild(h("div", { class: "fld" }, h("label", null, "URL do link"),
         h("input", { class: "ed-input", value: b.link || "", placeholder: "https://...", oninput: e => b.link = e.target.value })));
+    } else if (b.destino === "pagamento") {
+      var linksPag = cfg.linksPagamento || [];
+      if (linksPag.length) {
+        var selPag = h("select", { class: "ed-select", onchange: e => { b.linkPagamentoIdx = parseInt(e.target.value); } });
+        selPag.appendChild(h("option", { value: "-1", ...(b.linkPagamentoIdx === undefined || b.linkPagamentoIdx === -1 ? { selected: "selected" } : {}) }, "Link padrão (primeiro da lista)"));
+        linksPag.forEach(function(lnk, idx) {
+          selPag.appendChild(h("option", { value: String(idx), ...(b.linkPagamentoIdx === idx ? { selected: "selected" } : {}) }, (lnk.nome || "Link " + (idx + 1)) + " → " + (lnk.url || "sem url").slice(0, 30)));
+        });
+        card.appendChild(h("div", { class: "fld" }, h("label", null, "Qual link de pagamento?"), selPag));
+      } else {
+        card.appendChild(h("div", { class: "fld", style: "font-size:12.5px;color:#b8860b;line-height:1.4" }, "⚠️ Adicione links de pagamento nas Configurações deste fluxo acima."));
+      }
     } else {
       card.appendChild(h("div", { class: "fld", style: "font-size:12.5px;color:#8a97a0;line-height:1.4" },
-        b.destino === "pagamento" ? "Usa o Link de pagamento das Configurações deste fluxo." :
         "Abre o WhatsApp configurado neste fluxo."));
     }
     card.appendChild(h("label", { class: "chk" },
