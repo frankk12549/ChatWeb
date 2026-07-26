@@ -3236,6 +3236,7 @@ function voltarLista() { salvar(true); navTo(editandoAtendimento ? "atendimentos
 
 function clicarAcao(id) { const b = document.getElementById(id); if (b) b.click(); }
 function renderEditor() {
+  try {
   edBody.innerHTML = "";
   const content = h("main", { class: "dash-content" });
   const ehAtend = editandoAtendimento;
@@ -3340,6 +3341,7 @@ function renderEditor() {
   ));
   content.appendChild(fCard);
   edBody.appendChild(dashShell(ehAtend ? "atendimentos" : "funis", content));
+  } catch (e) { console.error("renderEditor error:", e); edBody.innerHTML = '<div style="padding:40px;text-align:center;color:#ff9b9b"><h2>Erro ao renderizar editor</h2><p style="margin-top:10px;color:#8a97a0">' + e.message + '</p><button class="btn" style="margin-top:16px" onclick="renderEditor()">Tentar novamente</button></div>'; }
 }
 
 function campoDelay(b) {
@@ -3697,15 +3699,27 @@ async function carregarProjetoNuvem() {
     }
   } catch (e) { console.warn("Nuvem (ler):", e); }
 }
+let _fluxosSalvosNuvem = {};
 async function salvarProjetoNuvem() {
   if (!API_TOKEN || !USUARIO) return;
   try {
     for (const f of PROJETO.fluxos) {
-      await apiAtualizarFluxo({
-        id: f.id, nome: f.nome, slug: f.slug || "",
-        config: f.config, blocos: f.blocos,
-        owner_id: USUARIO.id, publicado: f.publicado || false
-      });
+      if (_fluxosSalvosNuvem[f.id]) {
+        await apiAtualizarFluxo({
+          id: f.id, nome: f.nome, slug: f.slug || "",
+          config: f.config, blocos: f.blocos,
+          owner_id: USUARIO.id, publicado: f.publicado || false
+        });
+      } else {
+        const criado = await apiSalvarFluxo({
+          nome: f.nome, slug: f.slug || "",
+          config: f.config, blocos: f.blocos
+        });
+        if (criado && criado.id) {
+          _fluxosSalvosNuvem[f.id] = true;
+          f.id = criado.id;
+        }
+      }
     }
   } catch (e) { console.warn("Nuvem (salvar):", e); }
 }
