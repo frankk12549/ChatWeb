@@ -17,7 +17,7 @@ module.exports = async function handler(req, res) {
           LEFT JOIN fluxos f ON m.fluxo_id = f.id
           WHERE f.owner_id = ${owner_id}
           ORDER BY m.criado_em DESC LIMIT ${lim}`;
-        return res.status(200).json(rows);
+        return res.status(200).json(Array.from(rows));
       }
 
       if (since) {
@@ -25,21 +25,21 @@ module.exports = async function handler(req, res) {
           FROM mensagens WHERE remetente = 'cliente'
           AND criado_em > ${new Date(parseInt(since)).toISOString()}::timestamp
           ORDER BY criado_em DESC LIMIT ${lim}`;
-        return res.status(200).json(rows);
+        return res.status(200).json(Array.from(rows));
       }
 
       if (sessao) {
         const rows = await sql`SELECT id, sessao_id, sessao_id AS sessao, fluxo_id, fluxo_id AS flow_id, remetente, texto, criado_em
           FROM mensagens WHERE sessao_id = ${sessao}
           ORDER BY criado_em ASC LIMIT ${lim}`;
-        return res.status(200).json(rows);
+        return res.status(200).json(Array.from(rows));
       }
 
       if (fluxo_id) {
         const rows = await sql`SELECT id, sessao_id, sessao_id AS sessao, fluxo_id, fluxo_id AS flow_id, remetente, texto, criado_em
           FROM mensagens WHERE fluxo_id = ${fluxo_id}
           ORDER BY criado_em DESC LIMIT ${lim}`;
-        return res.status(200).json(rows);
+        return res.status(200).json(Array.from(rows));
       }
 
       return res.status(400).json({ erro: "Parametro obrigatório: owner_id, sessao, fluxo_id ou since." });

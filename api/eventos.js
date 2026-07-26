@@ -38,7 +38,7 @@ module.exports = async function handler(req, res) {
       } else {
         rows = await sql`SELECT e.id, e.fluxo_id, e.fluxo_id AS flow_id, e.sessao_id, e.sessao_id AS sessao, e.tipo, e.dados, e.criado_em FROM eventos e JOIN fluxos f ON e.fluxo_id = f.id WHERE f.owner_id = ${user.id} ORDER BY e.criado_em DESC LIMIT 500`;
       }
-      return res.status(200).json(rows);
+      return res.status(200).json(Array.from(rows));
     }
 
     return res.status(405).json({ erro: "Método não permitido." });

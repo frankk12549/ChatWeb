@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
       if (!user) return res.status(401).json({ erro: "Não autorizado." });
       const oid = owner_id || user.id;
       const rows = await sql`SELECT id, nome, slug, config, blocos, publicado, criado_em, atualizado_em FROM fluxos WHERE owner_id = ${oid} ORDER BY atualizado_em DESC`;
-      return res.status(200).json(rows);
+      return res.status(200).json(Array.from(rows));
     }
 
     // POST — cria fluxo (autenticado)
