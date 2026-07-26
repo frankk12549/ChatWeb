@@ -2,9 +2,7 @@
   "version": 2,
   "installCommand": "npm install",
   "rewrites": [
-    {
-      "source": "/((?!api/)[^.]+)",
-      "destination": "/index.html"
-    }
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/((?!api/)[^.]+)", "destination": "/lead.html" }
   ]
 }
