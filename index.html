@@ -1356,6 +1356,12 @@ function bolhaMidiaChat(texto, direcao) {
     bub.appendChild(img);
   } else if (t.slice(0, 11) === "data:audio/") {
     bub.classList.add("audio");
+    if (direcao !== "out") {
+      const mic = document.createElement("div"); mic.className = "audio-avatar";
+      if (CONFIG.avatarFoto) { const im = document.createElement("img"); im.src = CONFIG.avatarFoto; im.alt = ""; mic.appendChild(im); }
+      else { mic.textContent = (CONFIG.avatarLetra || (CONFIG.empresa || "S").charAt(0) || "S").toUpperCase(); }
+      bub.appendChild(mic);
+    }
     const player = criarPlayerAudio(t);
     bub.appendChild(player);
   } else if (t.slice(0, 5) === "data:") {
@@ -2836,6 +2842,17 @@ async function renderConversas() {
 // Renderiza o conteúdo de uma mensagem (texto, imagem ou áudio) na thread do admin
 function renderConvConteudo(texto) {
   const t = texto || "";
+  if (t.slice(0, 10) === "__bloco__:") {
+    try {
+      var blk = JSON.parse(t.slice(10));
+      if (blk && blk.tipo === "botao") {
+        const d = document.createElement("div"); d.className = "cb";
+        d.style.cssText = "display:inline-block;background:#00A884;color:#fff;padding:8px 14px;border-radius:8px;font-weight:600;font-size:13px";
+        d.textContent = "🔘 " + (blk.text || "Botão");
+        return d;
+      }
+    } catch (e) {}
+  }
   if (t.slice(0, 11) === "data:image/") { const im = document.createElement("img"); im.className = "conv-media"; im.src = t; im.alt = ""; im.style.cursor = "pointer"; im.onclick = () => window.open(t, "_blank"); return im; }
   if (t.slice(0, 11) === "data:audio/") { const au = document.createElement("audio"); au.controls = true; au.preload = "metadata"; au.src = t; return au; }
   if (t.slice(0, 5) === "data:") { const a = document.createElement("a"); a.href = t; a.target = "_blank"; a.download = "comprovante"; a.textContent = "📎 Abrir arquivo/comprovante"; a.style.cssText = "color:inherit;font-weight:700;text-decoration:underline"; return a; }
@@ -2843,6 +2860,10 @@ function renderConvConteudo(texto) {
 }
 function previewMsg(t) {
   t = t || "";
+  if (t.slice(0, 10) === "__bloco__:") {
+    try { var blk = JSON.parse(t.slice(10)); if (blk && blk.tipo === "botao") return "🔘 " + (blk.text || "Botão"); } catch (e) {}
+    return "🔘 botão";
+  }
   if (t.slice(0, 11) === "data:image/") return "📷 imagem";
   if (t.slice(0, 11) === "data:audio/") return "🎤 áudio";
   if (t.slice(0, 5) === "data:") return "📎 arquivo/comprovante";
@@ -4284,15 +4305,23 @@ function sugerirAddHome() {
   const phone = document.querySelector(".phone"); if (phone) phone.appendChild(b);
 }
 function iniciarPollingCliente() {
-  if (EDITAVEL) return;   // só quem abre o funil publicado
+  if (EDITAVEL) return;
+  var _primeiroPoll = true;
   setInterval(async function () {
     if (!OWNER_ID) return;
     try {
-      const data = await apiCall("GET", "mensagens?sessao=" + encodeURIComponent(SESSAO) + "&apos_id=" + msgClienteVistas) || [];
-      if (data && data.length) {
-        data.forEach(m => { if (m.id > msgClienteVistas) msgClienteVistas = m.id; receberDaEmpresa(m.texto); });
-        if (document.hidden) notificarCliente(data[data.length - 1].texto);
+      const data = await apiCall("GET", "mensagens?sessao=" + encodeURIComponent(SESSAO)) || [];
+      if (!data || !Array.isArray(data)) return;
+      const empresaMsgs = data.filter(m => m.remetente === "empresa");
+      if (_primeiroPoll) {
+        empresaMsgs.forEach(m => { const mId = m.id || ""; if (mId > msgClienteVistas) msgClienteVistas = mId; });
+        _primeiroPoll = false;
+        return;
       }
+      var novas = [];
+      empresaMsgs.forEach(m => { const mId = m.id || ""; if (mId > msgClienteVistas) { msgClienteVistas = mId; novas.push(m); } });
+      novas.forEach(m => receberDaEmpresa(m.texto));
+      if (novas.length && document.hidden) notificarCliente(novas[novas.length - 1].texto);
     } catch (e) {}
   }, 5000);
 }
