@@ -1549,13 +1549,50 @@ async function publicarNoDominio(f) {
 }
 
 function exportarFluxos() {
-  const blob = new Blob([JSON.stringify(PROJETO, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = "meus-fluxos.json";
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast("⬇️ Backup baixado! Guarde o arquivo meus-fluxos.json.");
+  var modal = h("div", { class: "modal-overlay", style: "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px" });
+  var box = h("div", { class: "card", style: "max-width:480px;width:100%;max-height:80vh;overflow-y:auto" });
+  box.appendChild(h("h2", null, "Exportar funis"));
+  box.appendChild(h("p", { class: "aviso", style: "margin-top:6px" }, "Selecione quais funis deseja exportar:"));
+
+  var selecionados = {};
+  PROJETO.fluxos.forEach(f => { selecionados[f.id] = true; });
+
+  var lista = h("div", { style: "margin-top:14px;display:flex;flex-direction:column;gap:8px" });
+  PROJETO.fluxos.forEach(f => {
+    var lbl = h("label", { style: "display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;cursor:pointer;font-size:13px" });
+    var ck = h("input", { type: "checkbox", checked: "checked", style: "accent-color:#FFD700;width:16px;height:16px" });
+    ck.onchange = () => { selecionados[f.id] = ck.checked; };
+    lbl.appendChild(ck);
+    lbl.appendChild(h("span", null, f.nome || "Sem nome"));
+    lbl.appendChild(h("span", { style: "color:#8a97a0;font-size:11px;margin-left:auto" }, f.blocos.length + " msgs"));
+    lista.appendChild(lbl);
+  });
+  box.appendChild(lista);
+
+  var btns = h("div", { style: "display:flex;gap:10px;margin-top:18px;justify-content:flex-end" });
+  var btnCancelar = h("button", { class: "btn gray" }, "Cancelar");
+  btnCancelar.onclick = () => modal.remove();
+  var btnExportar = h("button", { class: "btn" }, "⬇️ Exportar selecionados");
+  btnExportar.onclick = () => {
+    var ids = Object.keys(selecionados).filter(id => selecionados[id]);
+    if (!ids.length) { toast("Selecione pelo menos 1 funil."); return; }
+    var exportar = { fluxos: PROJETO.fluxos.filter(f => ids.includes(f.id)) };
+    var blob = new Blob([JSON.stringify(exportar, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = "funis-exportados.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    modal.remove();
+    toast("⬇️ " + ids.length + " funil(is) exportado(s)!");
+  };
+  btns.appendChild(btnCancelar);
+  btns.appendChild(btnExportar);
+  box.appendChild(btns);
+
+  modal.appendChild(box);
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  document.body.appendChild(modal);
 }
 function importarFluxos(file) {
   if (!file) return;
