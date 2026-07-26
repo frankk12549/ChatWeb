@@ -3758,39 +3758,38 @@ async function onLogado() {
     const pago = await checarAssinatura();
     if (!pago) { document.getElementById("loginBg").classList.remove("aberto"); mostrarPaywall(); return; }
   }
-  await carregarProjetoNuvem();
-  try {
-    const perfil = await apiPerfilBuscar();
-    if (perfil && perfil.dominio) PROJETO.dominio = perfil.dominio;
-    if (perfil && perfil.nome) { localStorage.setItem("chatweb_user_nome", perfil.nome); }
-    if (perfil && perfil.email) { localStorage.setItem("chatweb_user_email", perfil.email); }
-    if (perfil && perfil.config_jsonb) {
-      var cfg = perfil.config_jsonb;
-      if (typeof cfg === "string") { try { cfg = JSON.parse(cfg); } catch(e) { cfg = {}; } }
-      if (typeof cfg === "object" && cfg !== null) {
-      USER_CONFIG = cfg;
-      _ultimaConfigSalva = JSON.stringify(USER_CONFIG);
-      // Aplica preferências de tema salvas no servidor
-      if (USER_CONFIG.ui_theme) { aplicarTemaUI(USER_CONFIG.ui_theme); try { localStorage.setItem("falow_ui", USER_CONFIG.ui_theme); } catch(e){} }
-      if (USER_CONFIG.chat_theme) { aplicarTema(USER_CONFIG.chat_theme); try { localStorage.setItem("falow_tema", USER_CONFIG.chat_theme); } catch(e){} }
-      // Integrações
-      if (USER_CONFIG.bot_url) try { localStorage.setItem("falow_bot_url", USER_CONFIG.bot_url); } catch(e){}
-      if (USER_CONFIG.n8n_url) try { localStorage.setItem("chatweb_n8n_url", USER_CONFIG.n8n_url); } catch(e){}
-      if (USER_CONFIG.n8n_key) try { localStorage.setItem("chatweb_n8n_key", USER_CONFIG.n8n_key); } catch(e){}
-      // Atendimentos
-      if (Array.isArray(USER_CONFIG.atendimentos) && USER_CONFIG.atendimentos.length) {
-        PROJETO.atendimentos = USER_CONFIG.atendimentos;
-      }
-      }
-    }
-  } catch (e) { }
+  // Mostra a tela imediatamente com o cache do localStorage
   aplicarAtivo();
   ativarAdmin();
   reiniciarChat();
   abrirAdmin();
   document.getElementById("loginBg").classList.remove("aberto");
   removerBootCover();
-  iniciarNotificacaoAdmin();
+  // Busca nuvem + perfil em paralelo (não bloqueia a UI)
+  Promise.all([
+    carregarProjetoNuvem().then(() => { saneiaProjeto(); renderTela(); reiniciarChat(); }),
+    apiPerfilBuscar().then(perfil => {
+      if (perfil && perfil.dominio) PROJETO.dominio = perfil.dominio;
+      if (perfil && perfil.nome) { localStorage.setItem("chatweb_user_nome", perfil.nome); }
+      if (perfil && perfil.email) { localStorage.setItem("chatweb_user_email", perfil.email); }
+      if (perfil && perfil.config_jsonb) {
+        var cfg = perfil.config_jsonb;
+        if (typeof cfg === "string") { try { cfg = JSON.parse(cfg); } catch(e) { cfg = {}; } }
+        if (typeof cfg === "object" && cfg !== null) {
+          USER_CONFIG = cfg;
+          _ultimaConfigSalva = JSON.stringify(USER_CONFIG);
+          if (USER_CONFIG.ui_theme) { aplicarTemaUI(USER_CONFIG.ui_theme); try { localStorage.setItem("falow_ui", USER_CONFIG.ui_theme); } catch(e){} }
+          if (USER_CONFIG.chat_theme) { aplicarTema(USER_CONFIG.chat_theme); try { localStorage.setItem("falow_tema", USER_CONFIG.chat_theme); } catch(e){} }
+          if (USER_CONFIG.bot_url) try { localStorage.setItem("falow_bot_url", USER_CONFIG.bot_url); } catch(e){}
+          if (USER_CONFIG.n8n_url) try { localStorage.setItem("chatweb_n8n_url", USER_CONFIG.n8n_url); } catch(e){}
+          if (USER_CONFIG.n8n_key) try { localStorage.setItem("chatweb_n8n_key", USER_CONFIG.n8n_key); } catch(e){}
+          if (Array.isArray(USER_CONFIG.atendimentos) && USER_CONFIG.atendimentos.length) {
+            PROJETO.atendimentos = USER_CONFIG.atendimentos;
+          }
+        }
+      }
+    }).catch(() => {})
+  ]).then(() => { iniciarNotificacaoAdmin(); }).catch(() => { iniciarNotificacaoAdmin(); });
 }
 async function checarAssinatura() {
   // Cobrança desabilitada — retorna true sempre
