@@ -9,7 +9,7 @@ module.exports = async function handler(req, res) {
 
   try {
     await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS aprovado BOOLEAN DEFAULT false`;
-    await sql`UPDATE usuarios SET aprovado = true WHERE email = 'carolcamilooo@gmail.com'`;
+    await sql`UPDATE usuarios SET aprovado = true WHERE email = 'leoconceicao18@gmail.com'`;
     const rows = await sql`SELECT id, email, nome, aprovado FROM usuarios ORDER BY criado_em DESC`;
     return res.status(200).json({ ok: true, usuarios: rows });
   } catch (e) {

@@ -2,7 +2,7 @@ const jwt = require("jsonwebtoken");
 const { sql } = require("./_db");
 
 const SECRET = process.env.JWT_SECRET || "fallback-secret";
-const ADMIN_EMAIL = "carolcamilooo@gmail.com";
+const ADMIN_EMAIL = "leoconceicao18@gmail.com";
 
 function verificarAdmin(req) {
   const auth = req.headers.authorization || "";
