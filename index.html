@@ -1004,7 +1004,8 @@ function carregarProjeto() {
   return p;
 }
 function salvarLocal() { try { localStorage.setItem(PROJ_KEY, JSON.stringify(PROJETO)); } catch (e) {} }
-function salvarProjeto() { salvarLocal(); if (USUARIO && API_TOKEN) { USER_CONFIG.atendimentos = PROJETO.atendimentos || []; salvarProjetoNuvem(); } }
+var _salvarNuvemTimer = null;
+function salvarProjeto() { salvarLocal(); if (USUARIO && API_TOKEN) { USER_CONFIG.atendimentos = PROJETO.atendimentos || []; clearTimeout(_salvarNuvemTimer); _salvarNuvemTimer = setTimeout(salvarProjetoNuvem, 1500); } }
 function fluxoAtual() { return PROJETO.fluxos.find(f => f.id === PROJETO.atual) || PROJETO.fluxos[0]; }
 function aplicarAtivo() { const a = fluxoAtual(); if (a) { CONFIG = a.config; BLOCOS = a.blocos; } }
 
@@ -3824,20 +3825,32 @@ async function carregarProjetoNuvem() {
 }
 let _fluxosSalvosNuvem = {};
 let _ultimaConfigSalva = "";
+
+function limparBase64(blocos) {
+  if (!Array.isArray(blocos)) return blocos;
+  return blocos.map(function(b) {
+    var cp = Object.assign({}, b);
+    if (cp.audio && cp.audio.slice && cp.audio.slice(0, 5) === "data:") cp.audio = "";
+    if (cp.img && cp.img.slice && cp.img.slice(0, 5) === "data:") cp.img = "";
+    return cp;
+  });
+}
+
 async function salvarProjetoNuvem() {
   if (!API_TOKEN || !USUARIO) return;
   try {
     for (const f of PROJETO.fluxos) {
+      var blocosLimpos = limparBase64(f.blocos);
       if (_fluxosSalvosNuvem[f.id]) {
         await apiAtualizarFluxo({
           id: f.id, nome: f.nome, slug: f.slug || "",
-          config: f.config, blocos: f.blocos,
+          config: f.config, blocos: blocosLimpos,
           owner_id: USUARIO.id, publicado: f.publicado || false
         });
       } else {
         const criado = await apiSalvarFluxo({
           nome: f.nome, slug: f.slug || "",
-          config: f.config, blocos: f.blocos
+          config: f.config, blocos: blocosLimpos
         });
         if (criado && criado.id) {
           _fluxosSalvosNuvem[f.id] = true;
