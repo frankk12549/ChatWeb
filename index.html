@@ -1102,7 +1102,7 @@ if (TEM_LINK) {
     CONFIG = f.config; BLOCOS = f.blocos;
     OWNER_ID = d.owner || null; FLOW_ID = d.fid || null;
   } else {
-    LINK_CURTO = raw;                         // código curto → carrega da nuvem no load
+    LINK_CURTO = raw;
     CONFIG = clone(CONFIG_PADRAO); BLOCOS = [];
   }
 } else if (TEM_SLUG) {
@@ -4190,6 +4190,35 @@ function mostrarAvisoTeste() {
   const phone = document.querySelector(".phone"); if (phone) phone.appendChild(b);
 }
 
+async function carregarSlug() {
+  const fluxoPorSlug = PROJETO.fluxos.find(fx => fx.slug === URL_SLUG);
+  if (fluxoPorSlug && fluxoPorSlug.blocos && fluxoPorSlug.blocos.length) {
+    CONFIG = fluxoPorSlug.config; BLOCOS = fluxoPorSlug.blocos;
+    PROJETO.atual = fluxoPorSlug.id; FLOW_ID = fluxoPorSlug.id;
+    document.title = (fluxoPorSlug.config && fluxoPorSlug.config.empresa ? fluxoPorSlug.config.empresa : "ChatWeb");
+    tocarFluxo();
+    return;
+  }
+  try {
+    const fluxo = await apiBuscarFluxoPorSlug(URL_SLUG);
+    if (fluxo && fluxo.id && !fluxo.erro) {
+      var blocos = typeof fluxo.blocos === "string" ? JSON.parse(fluxo.blocos) : (fluxo.blocos || []);
+      try {
+        var arq = await apiBuscarArquivos(fluxo.id);
+        if (arq && arq.length) blocos = restaurarArquivos(blocos, arq);
+      } catch (e) {}
+      var cfg = typeof fluxo.config === "string" ? JSON.parse(fluxo.config) : (fluxo.config || {});
+      CONFIG = cfg; BLOCOS = blocos;
+      OWNER_ID = fluxo.owner_id || null; FLOW_ID = fluxo.id;
+      document.title = (cfg.empresa ? cfg.empresa : "ChatWeb");
+      aplicarVisual();
+      tocarFluxo();
+      return;
+    }
+  } catch (e) {}
+  tocarFluxo();
+}
+
 async function carregarLinkCurto() {
   let d = null;
   try {
@@ -4221,8 +4250,9 @@ async function carregarLinkCurto() {
 }
 window.addEventListener("load", () => {
   if (LINK_CURTO) carregarLinkCurto();
-  else if (!AUTH_ATIVO) setTimeout(() => tocarFluxo(), 600);   // com login ativo, o reiniciarChat do onLogado já toca (evita mensagens duplicadas)
-  iniciarPollingCliente();   // visitante escuta respostas da empresa
+  else if (TEM_SLUG) carregarSlug();
+  else if (!AUTH_ATIVO) setTimeout(() => tocarFluxo(), 600);
+  iniciarPollingCliente();
 });
 </script>
 </body>
