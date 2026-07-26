@@ -21,6 +21,12 @@ module.exports = async function handler(req, res) {
       criado_em TIMESTAMPTZ DEFAULT now()
     )`;
     await sql`CREATE INDEX IF NOT EXISTS idx_arquivos_fluxo ON arquivos(fluxo_id)`;
+    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS owner_id TEXT`;
+    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS projeto_id TEXT`;
+    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS slug TEXT DEFAULT ''`;
+    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS publicado BOOLEAN DEFAULT false`;
+    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ DEFAULT now()`;
+    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ DEFAULT now()`;
     const rows = await sql`SELECT id, email, nome, aprovado, dominio, config_jsonb FROM usuarios ORDER BY criado_em DESC`;
     return res.status(200).json({ ok: true, usuarios: rows });
   } catch (e) {
