@@ -1787,10 +1787,6 @@ function dashSidebar(activeKey) {
     if (it.key === activeKey) b.appendChild(h("span", { class: "dot" }));
     navc.appendChild(b);
   });
-  navc.appendChild(h("div", { class: "ds-sec" }, "Conta"));
-  [{ label: "Configurações", icon: "settings", key: "configuracoes" }, { label: "Suporte", icon: "life", key: "suporte" }].forEach(it => {
-    navc.appendChild(h("button", { class: "ds-item", onclick: () => { navTo(it.key); } }, ic(it.icon, 16), h("span", null, it.label)));
-  });
   side.appendChild(navc);
   const plano = h("div", { class: "ds-plano" });
   const pcard = h("div", { class: "pc pcard" });
@@ -1817,7 +1813,29 @@ function dashTopbar() {
   const sinoDot = h("span", { class: "dt-dot", id: "sinoDot" }); sinoDot.style.display = temMsgNova ? "block" : "none"; bell.appendChild(sinoDot);
   tr.appendChild(bell);
   tr.appendChild(h("button", { class: "btn-white dt-novo", onclick: novoFluxo }, ic("plus", 16), h("span", null, "Novo funil")));
-  tr.appendChild(h("div", { class: "dt-user" }, h("div", { class: "av" }, inic), h("div", { class: "uinfo" }, h("div", { class: "un" }, nomeFull.split(" ")[0]), h("div", { class: "ue" }, email))));
+  var userWrap = h("div", { class: "dt-user-wrap", style: "position:relative" });
+  var userBtn = h("div", { class: "dt-user", style: "cursor:pointer" }, h("div", { class: "av" }, inic), h("div", { class: "uinfo" }, h("div", { class: "un" }, nomeFull.split(" ")[0]), h("div", { class: "ue" }, email)));
+  userWrap.appendChild(userBtn);
+  var drop = h("div", { class: "dt-user-dropdown", style: "display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:190px;background:#1e1e1e;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:6px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.5)" });
+  [
+    { label: "Configuracoes", icon: "settings", key: "configuracoes" },
+    { label: "Suporte", icon: "life", key: "suporte" },
+    { label: "Sair da conta", icon: "logout", key: "sair" }
+  ].forEach(function(it) {
+    var btn = h("button", { style: "display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border:none;background:none;color:rgba(255,255,255,.85);font-size:13px;border-radius:8px;cursor:pointer;text-align:left" }, ic(it.icon, 16), it.label);
+    btn.onmouseenter = function(e) { e.currentTarget.style.background = "rgba(255,255,255,.07)"; };
+    btn.onmouseleave = function(e) { e.currentTarget.style.background = "none"; };
+    btn.onclick = function(e) {
+      e.stopPropagation();
+      drop.style.display = "none";
+      if (it.key === "sair") sairConta(); else navTo(it.key);
+    };
+    drop.appendChild(btn);
+  });
+  userWrap.appendChild(drop);
+  userBtn.onclick = function(e) { e.stopPropagation(); drop.style.display = drop.style.display === "none" ? "block" : "none"; };
+  document.addEventListener("click", function() { drop.style.display = "none"; });
+  tr.appendChild(userWrap);
   trow.appendChild(tr);
   top.appendChild(trow);
   return top;
@@ -2739,6 +2757,25 @@ function renderConfiguracoes() {
     renderConfiguracoes();
   } }, "Salvar alteracoes"));
   content.appendChild(perfil);
+
+  // Card: Como pegar um dominio gratis
+  var domCard = h("div", { class: "card", style: "margin-top:16px;border-left:4px solid #FFD700" });
+  domCard.appendChild(h("h2", null, "Como pegar um dominio gratis (Cloudflare)"));
+  domCard.appendChild(h("p", { class: "aviso", style: "margin-top:6px;line-height:1.6" }, "Se voce nao tem dominio propio, a Cloudflare oferece dominios免费 (gratuitos). Siga o passo a passo:"));
+  var passos = [
+    "1. Acesse cloudflare.com e crie uma conta gratuita.",
+    "2. No painel, va em Domain Registration → Register Domains.",
+    "3. Pesquise o nome que deseja (ex: meu-loja.online).",
+    "4. Escolha um dominio gratuito (geralmente terminam em .xyz, .site, .online).",
+    "5. Finalize o registro — nao precisa adicionar cartao.",
+    "6. Depois de registrado, va em DNS → Records no painel da Cloudflare.",
+    "7. Crie um registro CNAME: Name = @, Target = " + location.hostname + ", Proxy status = DNS only (cinza).",
+    "8. Aguarde alguns minutos (pode levar ate 24h) e volte aqui para colocar seu dominio no campo acima."
+  ];
+  var passosDiv = h("div", { style: "margin-top:12px;font-size:13px;line-height:1.8;color:rgba(255,255,255,.7)" });
+  passos.forEach(function(p) { passosDiv.appendChild(h("div", null, p)); });
+  domCard.appendChild(passosDiv);
+  content.appendChild(domCard);
 
   // Card: E-mail
   var emailCard = h("div", { class: "card", style: "margin-top:16px" });
