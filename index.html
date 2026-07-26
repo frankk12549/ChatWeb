@@ -1450,14 +1450,36 @@ function renderFluxoItem(f, idx) {
   ));
   return item;
 }
+function promptModal(titulo, placeholder, padrao) {
+  return new Promise(function(resolve) {
+    var overlay = h("div", { style: "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px" });
+    var box = h("div", { class: "card", style: "max-width:400px;width:100%" });
+    box.appendChild(h("h2", null, titulo));
+    var inp = h("input", { class: "ed-input", type: "text", value: padrao || "", placeholder: placeholder || "", style: "margin-top:14px" });
+    box.appendChild(inp);
+    var btns = h("div", { style: "display:flex;gap:10px;margin-top:16px;justify-content:flex-end" });
+    var btnCancelar = h("button", { class: "btn gray" }, "Cancelar");
+    var btnOk = h("button", { class: "btn" }, "OK");
+    btnCancelar.onclick = function() { overlay.remove(); resolve(null); };
+    btnOk.onclick = function() { overlay.remove(); resolve(inp.value); };
+    inp.onkeydown = function(e) { if (e.key === "Enter") { overlay.remove(); resolve(inp.value); } };
+    btns.appendChild(btnCancelar); btns.appendChild(btnOk);
+    box.appendChild(btns);
+    overlay.appendChild(box);
+    overlay.onclick = function(e) { if (e.target === overlay) { overlay.remove(); resolve(null); } };
+    document.body.appendChild(overlay);
+    setTimeout(function() { inp.focus(); }, 100);
+  });
+}
 function novoFluxo() {
-  const nome = prompt("Nome do novo fluxo:", "Novo fluxo");
-  if (nome === null) return;
-  const id = novoId();
-  const slugBase = (nome || "novo-fluxo").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  PROJETO.fluxos.push({ id: id, nome: (nome.trim() || "Novo fluxo"), slug: slugBase + "-" + Date.now().toString(36).slice(-3), config: clone(CONFIG_PADRAO), blocos: clone(BLOCOS_PADRAO) });
-  salvarProjeto();
-  abrirEditorFluxo(id);
+  promptModal("Nome do novo fluxo:", "Ex: Como funciona", "Novo fluxo").then(function(nome) {
+    if (nome === null) return;
+    const id = novoId();
+    const slugBase = (nome || "novo-fluxo").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    PROJETO.fluxos.push({ id: id, nome: (nome.trim() || "Novo fluxo"), slug: slugBase + "-" + Date.now().toString(36).slice(-3), config: clone(CONFIG_PADRAO), blocos: clone(BLOCOS_PADRAO) });
+    salvarProjeto();
+    abrirEditorFluxo(id);
+  });
 }
 function duplicarFluxo(idx) {
   const f = PROJETO.fluxos[idx];
@@ -1467,9 +1489,10 @@ function duplicarFluxo(idx) {
 }
 function renomearFluxo(idx) {
   const f = PROJETO.fluxos[idx];
-  const nome = prompt("Novo nome do fluxo:", f.nome || "");
-  if (nome === null) return;
-  f.nome = nome.trim() || f.nome; salvarProjeto(); renderTela();
+  promptModal("Novo nome do fluxo:", "Nome do fluxo", f.nome || "").then(function(nome) {
+    if (nome === null) return;
+    f.nome = nome.trim() || f.nome; salvarProjeto(); renderTela();
+  });
 }
 function excluirFluxo(idx) {
   if (PROJETO.fluxos.length <= 1) { toast("Você precisa ter ao menos 1 fluxo."); return; }
@@ -1516,18 +1539,20 @@ function renderAtendItem(f, idx) {
 }
 function novoAtendimento() {
   if (!PROJETO.atendimentos) PROJETO.atendimentos = [];
-  const nome = prompt("Nome do fluxo de atendimento:", "Novo fluxo");
-  if (nome === null) return;
-  const id = novoId();
-  PROJETO.atendimentos.push({ id: id, nome: (nome.trim() || "Novo fluxo"), config: clone(CONFIG_PADRAO), blocos: [{ tipo: "texto", texto: "", delay: 1 }] });
-  salvarProjeto();
-  abrirEditorAtendimento(id);
+  promptModal("Nome do fluxo de atendimento:", "Ex: Suporte rápido", "Novo fluxo").then(function(nome) {
+    if (nome === null) return;
+    const id = novoId();
+    PROJETO.atendimentos.push({ id: id, nome: (nome.trim() || "Novo fluxo"), config: clone(CONFIG_PADRAO), blocos: [{ tipo: "texto", texto: "", delay: 1 }] });
+    salvarProjeto();
+    abrirEditorAtendimento(id);
+  });
 }
 function renomearAtendimento(idx) {
   const f = PROJETO.atendimentos[idx];
-  const nome = prompt("Novo nome:", f.nome || "");
-  if (nome === null) return;
-  f.nome = nome.trim() || f.nome; salvarProjeto(); renderTela();
+  promptModal("Novo nome:", "Nome do fluxo", f.nome || "").then(function(nome) {
+    if (nome === null) return;
+    f.nome = nome.trim() || f.nome; salvarProjeto(); renderTela();
+  });
 }
 function duplicarAtendimento(idx) {
   const f = PROJETO.atendimentos[idx];
