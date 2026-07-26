@@ -1458,6 +1458,23 @@ function renderFluxoItem(f, idx) {
   ));
   return item;
 }
+function confirmModal(texto) {
+  return new Promise(function(resolve) {
+    var overlay = h("div", { style: "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px" });
+    var box = h("div", { class: "card", style: "max-width:400px;width:100%" });
+    box.appendChild(h("p", { style: "margin:0;font-size:15px;line-height:1.5" }, texto));
+    var btns = h("div", { style: "display:flex;gap:10px;margin-top:18px;justify-content:flex-end" });
+    var btnCancelar = h("button", { class: "btn gray" }, "Cancelar");
+    var btnOk = h("button", { class: "btn red" }, "Confirmar");
+    btnCancelar.onclick = function() { overlay.remove(); resolve(false); };
+    btnOk.onclick = function() { overlay.remove(); resolve(true); };
+    btns.appendChild(btnCancelar); btns.appendChild(btnOk);
+    box.appendChild(btns);
+    overlay.appendChild(box);
+    overlay.onclick = function(e) { if (e.target === overlay) { overlay.remove(); resolve(false); } };
+    document.body.appendChild(overlay);
+  });
+}
 function promptModal(titulo, placeholder, padrao) {
   return new Promise(function(resolve) {
     var overlay = h("div", { style: "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px" });
@@ -1505,10 +1522,12 @@ function renomearFluxo(idx) {
 function excluirFluxo(idx) {
   if (PROJETO.fluxos.length <= 1) { toast("Você precisa ter ao menos 1 fluxo."); return; }
   const f = PROJETO.fluxos[idx];
-  if (!confirm('Excluir o fluxo "' + (f.nome || "") + '"? Não dá pra desfazer.')) return;
-  PROJETO.fluxos.splice(idx, 1);
-  if (PROJETO.atual === f.id) PROJETO.atual = PROJETO.fluxos[0].id;
-  aplicarAtivo(); salvarProjeto(); renderTela();
+  confirmModal('Excluir o fluxo "' + (f.nome || "") + '"? Não dá pra desfazer.').then(function(ok) {
+    if (!ok) return;
+    PROJETO.fluxos.splice(idx, 1);
+    if (PROJETO.atual === f.id) PROJETO.atual = PROJETO.fluxos[0].id;
+    aplicarAtivo(); salvarProjeto(); renderTela();
+  });
 }
 /* ----- FLUXOS DE ATENDIMENTO (curtos, pra disparar no chat) ----- */
 function renderAtendimentos() {
@@ -1569,8 +1588,10 @@ function duplicarAtendimento(idx) {
 }
 function excluirAtendimento(idx) {
   const f = PROJETO.atendimentos[idx];
-  if (!confirm('Excluir "' + (f.nome || "") + '"? Não dá pra desfazer.')) return;
-  PROJETO.atendimentos.splice(idx, 1); salvarProjeto(); renderTela();
+  confirmModal('Excluir "' + (f.nome || "") + '"? Não dá pra desfazer.').then(function(ok) {
+    if (!ok) return;
+    PROJETO.atendimentos.splice(idx, 1); salvarProjeto(); renderTela();
+  });
 }
 
 async function mostrarLinkFluxo(f) {
@@ -1868,7 +1889,7 @@ async function renderAdminUsuarios() {
         const btnAprovar = h("button", { class: "btn", style: "background:#22c55e;color:#fff;font-size:12px;padding:6px 14px" }, "✓ Aprovar");
         const btnRejeitar = h("button", { class: "btn red", style: "font-size:12px;padding:6px 14px" }, "✕ Rejeitar");
         btnAprovar.onclick = async () => { btnAprovar.disabled = true; btnAprovar.textContent = "Aprovando…"; await apiAdminAprovar(u.id); renderAdminUsuarios(); };
-        btnRejeitar.onclick = async () => { if (!confirm("Rejeitar e remover " + u.email + "?")) return; btnRejeitar.disabled = true; await apiAdminRejeitar(u.id); renderAdminUsuarios(); };
+        btnRejeitar.onclick = async () => { if (!(await confirmModal("Rejeitar e remover " + u.email + "?"))) return; btnRejeitar.disabled = true; await apiAdminRejeitar(u.id); renderAdminUsuarios(); };
         btns.appendChild(btnAprovar); btns.appendChild(btnRejeitar);
         row.appendChild(info); row.appendChild(btns);
         secPend.appendChild(row);
@@ -2758,7 +2779,7 @@ async function renderConversa(sessao) {
     listaFx.appendChild(h("button", { class: "btn sm teal", onclick: () => { conversaSessao = null; if (convTimer) { clearInterval(convTimer); convTimer = null; } navTo("atendimentos"); } }, "➕ Criar fluxo de atendimento"));
   } else {
     const wrap = h("div", { class: "add-line" });
-    atends.forEach(fx => wrap.appendChild(h("button", { class: "btn sm teal", onclick: () => { if (confirm('Enviar o fluxo "' + (fx.nome || "") + '" para este cliente agora?')) enviarFluxoNaConversa(fx); } }, "▶ " + (fx.nome || "Fluxo"))));
+    atends.forEach(fx => wrap.appendChild(h("button", { class: "btn sm teal", onclick: () => { confirmModal('Enviar o fluxo "' + (fx.nome || "") + '" para este cliente agora?').then(function(ok) { if (ok) enviarFluxoNaConversa(fx); }); } }, "▶ " + (fx.nome || "Fluxo"))));
     listaFx.appendChild(wrap);
   }
   const abaFx = h("div", { class: "conv-fxbox", style: "margin-top:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px" });
@@ -3063,11 +3084,13 @@ async function renderConfiguracoes() {
   danger.appendChild(h("p", { class: "aviso", style: "margin-top:6px" }, "Acoes irreversiveis."));
   var dangerRow = h("div", { style: "display:flex;gap:10px;margin-top:12px;flex-wrap:wrap" });
   dangerRow.appendChild(h("button", { class: "btn red", onclick: function() {
-    if (confirm("Apagar TODOS os dados locais?")) {
-      localStorage.removeItem("atendimento_projeto_v1");
-      toast("Dados apagados!");
-      setTimeout(function() { location.reload(); }, 1000);
-    }
+    confirmModal("Apagar TODOS os dados locais? Essa ação não pode ser desfeita.").then(function(ok) {
+      if (ok) {
+        localStorage.removeItem("atendimento_projeto_v1");
+        toast("Dados apagados!");
+        setTimeout(function() { location.reload(); }, 1000);
+      }
+    });
   } }, "Apagar dados locais"));
   dangerRow.appendChild(h("button", { class: "btn red", onclick: sairConta }, "Sair da conta"));
   danger.appendChild(dangerRow);
@@ -3535,8 +3558,10 @@ function salvar(silencioso) {
 document.getElementById("btnSalvar").onclick = () => salvar();
 document.getElementById("btnTestar").onclick = () => { salvar(true); fecharEditor(); reiniciarChat(); toast("👁 Testando o fluxo…"); };
 document.getElementById("btnPadrao").onclick = () => {
-  if (!confirm("Restaurar as mensagens deste fluxo para o exemplo padrão?")) return;
-  rascunho.blocos = clone(BLOCOS_PADRAO); renderEditor(); toast("↺ Padrão restaurado (lembre de salvar).");
+  confirmModal("Restaurar as mensagens deste fluxo para o exemplo padrão?").then(function(ok) {
+    if (!ok) return;
+    rascunho.blocos = clone(BLOCOS_PADRAO); renderEditor(); toast("↺ Padrão restaurado (lembre de salvar).");
+  });
 };
 document.getElementById("btnLink").onclick = () => {
   salvar(true);
