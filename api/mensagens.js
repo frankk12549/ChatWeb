@@ -9,12 +9,14 @@ module.exports = async function handler(req, res) {
   try {
     // GET — lista mensagens de uma sessão
     if (req.method === "GET") {
-      const { sessao, fluxo_id, limit } = req.query || {};
-      if (!sessao && !fluxo_id) return res.status(400).json({ erro: "sessao ou fluxo_id obrigatório." });
+      const { sessao, fluxo_id, since, limit } = req.query || {};
+      if (!sessao && !fluxo_id && !since) return res.status(400).json({ erro: "sessao, fluxo_id ou since obrigatório." });
 
       const lim = Math.min(parseInt(limit) || 200, 500);
       let rows;
-      if (sessao) {
+      if (since) {
+        rows = await sql`SELECT id, sessao_id, fluxo_id, remetente, texto, criado_em FROM mensagens WHERE remetente = 'cliente' AND criado_em > ${new Date(parseInt(since)).toISOString()}::timestamp ORDER BY criado_em DESC LIMIT ${lim}`;
+      } else if (sessao) {
         rows = await sql`SELECT id, sessao_id, fluxo_id, remetente, texto, criado_em FROM mensagens WHERE sessao_id = ${sessao} ORDER BY criado_em ASC LIMIT ${lim}`;
       } else {
         rows = await sql`SELECT id, sessao_id, fluxo_id, remetente, texto, criado_em FROM mensagens WHERE fluxo_id = ${fluxo_id} ORDER BY criado_em DESC LIMIT ${lim}`;

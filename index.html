@@ -3614,13 +3614,27 @@ function beepNotificacao() {
     o.start(t); o.stop(t + 0.26);
   } catch (e) {}
 }
+let _adminPollingTimer = null;
+let _adminUltimaMsg = Date.now();
 async function iniciarNotificacaoAdmin() {
   if (!API_TOKEN || !USUARIO) return;
-  setInterval(async () => {
+  pedirPermissaoNotificacao();
+  if (_adminPollingTimer) clearInterval(_adminPollingTimer);
+  _adminPollingTimer = setInterval(async () => {
     if (!API_TOKEN || !USUARIO) return;
-    // polling simplificado — verifica se há novas mensagens via API
-    // (implementação futura: endpoint de polling)
-  }, 12000);
+    try {
+      const data = await apiCall("GET", "mensagens?since=" + _adminUltimaMsg + "&limit=20");
+      if (data && Array.isArray(data) && data.length) {
+        _adminUltimaMsg = Date.now();
+        const ultima = data[data.length - 1];
+        if (document.hidden) {
+          notificarCliente(ultima.texto || "Nova mensagem do cliente");
+        } else {
+          toast("💬 Nova mensagem do cliente");
+        }
+      }
+    } catch (e) {}
+  }, 8000);
 }
 function ativarAdmin() {
   document.body.classList.add("admin-view");   // ativa o fundo escuro + moldura no desktop
