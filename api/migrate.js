@@ -12,6 +12,15 @@ module.exports = async function handler(req, res) {
     await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS dominio TEXT DEFAULT ''`;
     await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS config_jsonb JSONB DEFAULT '{}'`;
     await sql`UPDATE usuarios SET aprovado = true WHERE email = 'leoconceicao18@gmail.com'`;
+    await sql`CREATE TABLE IF NOT EXISTS arquivos (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL,
+      fluxo_id TEXT NOT NULL,
+      chave TEXT NOT NULL,
+      dados TEXT NOT NULL,
+      criado_em TIMESTAMPTZ DEFAULT now()
+    )`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_arquivos_fluxo ON arquivos(fluxo_id)`;
     const rows = await sql`SELECT id, email, nome, aprovado, dominio, config_jsonb FROM usuarios ORDER BY criado_em DESC`;
     return res.status(200).json({ ok: true, usuarios: rows });
   } catch (e) {

@@ -1072,6 +1072,12 @@ async function apiAtualizarFluxo(fluxo) {
 async function apiEnviarMensagem(sessaoId, fluxoId, remetente, texto) {
   return await apiCall("POST", "mensagens", { sessao_id: sessaoId, fluxo_id: fluxoId, remetente, texto });
 }
+async function apiSalvarArquivos(fluxoId, arquivos) {
+  return await apiCall("POST", "arquivos", { fluxo_id: fluxoId, arquivos: arquivos });
+}
+async function apiBuscarArquivos(fluxoId) {
+  return await apiCall("GET", "arquivos?fluxo_id=" + encodeURIComponent(fluxoId));
+}
 async function apiBuscarMensagens(sessaoId) {
   return await apiCall("GET", "mensagens?sessao=" + encodeURIComponent(sessaoId));
 }
@@ -3810,12 +3816,20 @@ async function carregarProjetoNuvem() {
   try {
     const fluxos = await apiListarFluxos(USUARIO.id);
     if (fluxos && Array.isArray(fluxos) && fluxos.length) {
-      PROJETO.fluxos = fluxos.map(f => ({
-        id: f.id, nome: f.nome, slug: f.slug || "",
-        config: typeof f.config === "string" ? JSON.parse(f.config) : (f.config || {}),
-        blocos: typeof f.blocos === "string" ? JSON.parse(f.blocos) : (f.blocos || []),
-        publicado: f.publicado
+      PROJETO.fluxos = await Promise.all(fluxos.map(async f => {
+        var blocos = typeof f.blocos === "string" ? JSON.parse(f.blocos) : (f.blocos || []);
+        try {
+          var arq = await apiBuscarArquivos(f.id);
+          if (arq && arq.length) blocos = restaurarArquivos(blocos, arq);
+        } catch (e) {}
+        return {
+          id: f.id, nome: f.nome, slug: f.slug || "",
+          config: typeof f.config === "string" ? JSON.parse(f.config) : (f.config || {}),
+          blocos: blocos,
+          publicado: f.publicado
+        };
       }));
+      fluxos.forEach(f => { _fluxosSalvosNuvem[f.id] = true; });
       if (!PROJETO.atual || !PROJETO.fluxos.find(fx => fx.id === PROJETO.atual)) PROJETO.atual = PROJETO.fluxos[0].id;
       saneiaProjeto(); salvarLocal();
     } else {
@@ -3836,29 +3850,69 @@ function limparBase64(blocos) {
   });
 }
 
+function extrairArquivos(blocos, fluxoId) {
+  var arquivos = [];
+  var cp = (blocos || []).map(function(b, i) {
+    var c = Object.assign({}, b);
+    if (c.audio && c.audio.slice && c.audio.slice(0, 5) === "data:") {
+      var chave = "b" + i + "_audio";
+      arquivos.push({ id: fluxoId + "_" + chave, chave: chave, dados: c.audio });
+      c.audio = "__arquivo:" + chave + "__";
+    }
+    if (c.img && c.img.slice && c.img.slice(0, 5) === "data:") {
+      var chave = "b" + i + "_img";
+      arquivos.push({ id: fluxoId + "_" + chave, chave: chave, dados: c.img });
+      c.img = "__arquivo:" + chave + "__";
+    }
+    return c;
+  });
+  return { blocos: cp, arquivos: arquivos };
+}
+
+function restaurarArquivos(blocos, arquivosLista) {
+  if (!arquivosLista || !arquivosLista.length) return blocos;
+  var mapa = {};
+  arquivosLista.forEach(function(a) { mapa[a.chave] = a.dados; });
+  return (blocos || []).map(function(b) {
+    var c = Object.assign({}, b);
+    if (c.audio && c.audio.slice && c.audio.slice(0, 11) === "__arquivo:") {
+      var chave = c.audio.slice(11, -2);
+      c.audio = mapa[chave] || "";
+    }
+    if (c.img && c.img.slice && c.img.slice(0, 11) === "__arquivo:") {
+      var chave = c.img.slice(11, -2);
+      c.img = mapa[chave] || "";
+    }
+    return c;
+  });
+}
+
 async function salvarProjetoNuvem() {
   if (!API_TOKEN || !USUARIO) return;
   try {
     for (const f of PROJETO.fluxos) {
-      var blocosLimpos = limparBase64(f.blocos);
+      var extraido = extrairArquivos(f.blocos, f.id);
       if (_fluxosSalvosNuvem[f.id]) {
         await apiAtualizarFluxo({
           id: f.id, nome: f.nome, slug: f.slug || "",
-          config: f.config, blocos: blocosLimpos,
+          config: f.config, blocos: extraido.blocos,
           owner_id: USUARIO.id, publicado: f.publicado || false
         });
       } else {
         const criado = await apiSalvarFluxo({
           nome: f.nome, slug: f.slug || "",
-          config: f.config, blocos: blocosLimpos
+          config: f.config, blocos: extraido.blocos
         });
         if (criado && criado.id) {
           _fluxosSalvosNuvem[f.id] = true;
           f.id = criado.id;
+          extraido.arquivos.forEach(function(a) { a.id = f.id + "_" + a.chave; });
         }
       }
+      if (extraido.arquivos.length) {
+        await apiSalvarArquivos(f.id, extraido.arquivos);
+      }
     }
-    // Salva config_jsonb (atendimentos, integrações, temas) — debounce simples
     var cfgStr = JSON.stringify(USER_CONFIG);
     if (cfgStr !== _ultimaConfigSalva) {
       _ultimaConfigSalva = cfgStr;
@@ -4141,7 +4195,12 @@ async function carregarLinkCurto() {
   try {
     const fluxo = await apiCall("GET", "fluxos/" + LINK_CURTO);
     if (fluxo && !fluxo.erro) {
-      d = { config: fluxo.config, blocos: fluxo.blocos, owner: fluxo.owner_id, fid: fluxo.id };
+      var blocos = fluxo.blocos || [];
+      try {
+        var arq = await apiBuscarArquivos(fluxo.id);
+        if (arq && arq.length) blocos = restaurarArquivos(blocos, arq);
+      } catch (e) {}
+      d = { config: fluxo.config, blocos: blocos, owner: fluxo.owner_id, fid: fluxo.id };
     }
   } catch (e) {}
 
