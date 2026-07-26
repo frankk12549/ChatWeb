@@ -603,7 +603,8 @@
   .dash-foot button:hover { color: rgba(255,255,255,.7); }
   /* ===== Telas de dados (Métricas/Respostas/Conversas) no painel escuro ===== */
   .dash-content .voltar { color: #FFE55C; }
-  .dash-content .card { background: linear-gradient(145deg,#1a1500 0%,#050a08 100%); border: 1px solid rgba(255,255,255,.05); box-shadow: 0 30px 80px -26px rgba(0,0,0,.85), inset 0 1px 2px rgba(255,255,255,.1); color: #e9edef; border-radius: 20px; padding: 22px; }
+  .dash-content .card { background: linear-gradient(145deg,#1a1500 0%,#050a08 100%); border: 1px solid rgba(255,255,255,.05); box-shadow: 0 4px 24px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3), inset 0 1px 2px rgba(255,255,255,.1); color: #e9edef; border-radius: 20px; padding: 24px; transition: box-shadow .2s, transform .2s; }
+  .dash-content .card:hover { box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.4), inset 0 1px 2px rgba(255,255,255,.1); transform: translateY(-1px); }
   .dash-content .card > h2 { color: #FFE55C; }
   .dash-content .card > .aviso { color: rgba(255,255,255,.5); }
   .dash-content .btn.gray { background: rgba(255,255,255,.06); color: #e9edef; }
@@ -712,7 +713,8 @@
   body.tema-claro .dd-it:hover { background: rgba(0,0,0,.05); }
   /* telas de dados no claro */
   body.tema-claro .dash-content .voltar { color: #B8860B; }
-  body.tema-claro .dash-content .card { background: #fff; border: 1px solid #e8eaef; box-shadow: 0 1px 2px rgba(16,24,40,.05); color: #111b21; }
+  body.tema-claro .dash-content .card { background: #fff; border: 1px solid #e8eaef; box-shadow: 0 2px 12px rgba(16,24,40,.08), 0 1px 3px rgba(16,24,40,.06); color: #111b21; border-radius: 20px; transition: box-shadow .2s, transform .2s; }
+  body.tema-claro .dash-content .card:hover { box-shadow: 0 4px 20px rgba(16,24,40,.12), 0 2px 6px rgba(16,24,40,.08); transform: translateY(-1px); }
   body.tema-claro .dash-content .card > h2 { color: #B8860B; }
   body.tema-claro .dash-content .card > .aviso { color: #8a97a0; }
   body.tema-claro .dash-content .btn.gray { background: #eef1f5; color: #2a3942; }
@@ -1005,13 +1007,24 @@ async function apiCall(method, path, body) {
 }
 async function apiLogin(email, senha) {
   const r = await apiCall("POST", "auth", { email, senha });
+  if (r && r.pendente) return { pendente: true, erro: r.erro };
   if (r && r.token) { API_TOKEN = r.token; localStorage.setItem("chatweb_api_token", r.token); return r; }
   return null;
 }
 async function apiCadastro(email, senha, nome) {
   const r = await apiCall("PUT", "auth", { email, senha, nome });
+  if (r && r.pendente) return { pendente: true };
   if (r && r.token) { API_TOKEN = r.token; localStorage.setItem("chatweb_api_token", r.token); return r; }
   return null;
+}
+async function apiAdminListar() {
+  return await apiCall("GET", "admin");
+}
+async function apiAdminAprovar(usuarioId) {
+  return await apiCall("POST", "admin", { usuario_id: usuarioId, acao: "aprovar" });
+}
+async function apiAdminRejeitar(usuarioId) {
+  return await apiCall("POST", "admin", { usuario_id: usuarioId, acao: "rejeitar" });
 }
 async function apiBuscarFluxoPorSlug(slug) {
   return await apiCall("GET", "fluxos?slug=" + encodeURIComponent(slug));
@@ -1715,7 +1728,7 @@ async function renderAdminUsuarios() {
     h("div", null,
       h("div", { class: "dh-eyebrow" }, h("i"), h("span", null, "Administração")),
       h("h1", { class: "dh-title" }, "Usuários do ChatWeb"),
-      h("p", { class: "dh-sub" }, "Quem está usando, quantos ativos e o uso de cada um."))));
+      h("p", { class: "dh-sub" }, "Aprove ou rejeite novos cadastros."))));
   const card = h("div", { class: "card" }, h("h2", null, "👑 Usuários"));
   const carregando = h("div", { style: "color:#8a97a0;font-size:14px;padding:10px 2px" }, "Carregando…");
   card.appendChild(carregando);
@@ -1724,46 +1737,59 @@ async function renderAdminUsuarios() {
 
   if (!EH_ADMIN()) { carregando.textContent = "Acesso restrito."; return; }
 
-  carregando.textContent = "Funcionalidade em desenvolvimento — dados em breve via Neon.";
-  carregando.remove();
-  return;
+  try {
+    const dados = await apiAdminListar();
+    carregando.remove();
+    if (!dados || !dados.usuarios || !dados.usuarios.length) {
+      card.appendChild(h("div", { style: "color:#8a97a0;font-size:14px" }, "Nenhum usuário cadastrado ainda."));
+      return;
+    }
 
-  const fmtD = iso => { try { return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }); } catch (e) { return "—"; } };
-  card.appendChild(h("div", { class: "add-line", style: "margin:4px 0 16px;gap:10px" },
-    h("div", { class: "resp-resumo", style: "margin:0" }, "👥 " + dados.total + " usuário(s)"),
-    h("div", { class: "resp-resumo", style: "margin:0" }, "🟢 " + dados.ativos7d + " ativo(s) em 7 dias")));
+    const pendentes = dados.usuarios.filter(u => u.aprovado === false);
+    const aprovados = dados.usuarios.filter(u => u.aprovado === true);
 
-  if (!dados.usuarios || !dados.usuarios.length) { card.appendChild(h("div", { style: "color:#8a97a0;font-size:14px" }, "Nenhum usuário cadastrado ainda.")); return; }
+    if (pendentes.length) {
+      const secPend = h("div", { style: "margin-bottom:20px" });
+      secPend.appendChild(h("h3", { style: "color:#FFD700;margin-bottom:10px" }, "⏳ Aguardando aprovação (" + pendentes.length + ")"));
+      pendentes.forEach(u => {
+        const row = h("div", { style: "display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.15);border-radius:10px;margin-bottom:8px" });
+        const info = h("div", null,
+          h("div", { style: "font-weight:600;font-size:14px" }, u.email),
+          h("div", { style: "font-size:12px;color:#8a97a0;margin-top:2px" }, "Cadastrado em " + formatarData(u.criado_em)));
+        const btns = h("div", { style: "display:flex;gap:8px" });
+        const btnAprovar = h("button", { class: "btn", style: "background:#22c55e;color:#fff;font-size:12px;padding:6px 14px" }, "✓ Aprovar");
+        const btnRejeitar = h("button", { class: "btn red", style: "font-size:12px;padding:6px 14px" }, "✕ Rejeitar");
+        btnAprovar.onclick = async () => { btnAprovar.disabled = true; btnAprovar.textContent = "Aprovando…"; await apiAdminAprovar(u.id); renderAdminUsuarios(); };
+        btnRejeitar.onclick = async () => { if (!confirm("Rejeitar e remover " + u.email + "?")) return; btnRejeitar.disabled = true; await apiAdminRejeitar(u.id); renderAdminUsuarios(); };
+        btns.appendChild(btnAprovar); btns.appendChild(btnRejeitar);
+        row.appendChild(info); row.appendChild(btns);
+        secPend.appendChild(row);
+      });
+      card.appendChild(secPend);
+    }
 
-  const scroll = h("div", { class: "resp-scroll", style: "overflow-x:auto" });
-  const tbl = h("table", { class: "resp-tbl" });
-  tbl.appendChild(h("thead", null, h("tr", null,
-    h("th", null, "E-mail"), h("th", null, "Cadastro"), h("th", null, "Funis"),
-    h("th", null, "Visitantes"), h("th", null, "Conversas"), h("th", null, "Última atividade"))));
-  const tb = h("tbody");
-  dados.usuarios.forEach(u => tb.appendChild(h("tr", null,
-    h("td", null, u.email || "—"),
-    h("td", null, fmtD(u.criado_em)),
-    h("td", null, String(u.funis)),
-    h("td", null, String(u.visitantes)),
-    h("td", null, String(u.conversas)),
-    h("td", { class: "resp-data" }, u.ultima_atividade ? fmtD(u.ultima_atividade) : "—"))));
-  tbl.appendChild(tb);
-  scroll.appendChild(tbl);
-  card.appendChild(scroll);
-  card.appendChild(h("div", { class: "add-line", style: "margin-top:12px" },
-    h("button", { class: "btn sm gray", onclick: () => baixarUsuariosCSV(dados.usuarios) }, "⬇️ Baixar (CSV)")));
+    if (aprovados.length) {
+      card.appendChild(h("h3", { style: "margin-bottom:10px" }, "✅ Aprovados (" + aprovados.length + ")"));
+      const scroll = h("div", { style: "overflow-x:auto" });
+      const tbl = h("table", { class: "resp-tbl" });
+      tbl.appendChild(h("thead", null, h("tr", null, h("th", null, "E-mail"), h("th", null, "Nome"), h("th", null, "Cadastro"), h("th", null, "Último login"))));
+      const tb = h("tbody");
+      aprovados.forEach(u => tb.appendChild(h("tr", null,
+        h("td", null, u.email || "—"),
+        h("td", null, u.nome || "—"),
+        h("td", null, formatarData(u.criado_em)),
+        h("td", null, u.ultimo_login ? formatarData(u.ultimo_login) : "Nunca"))));
+      tbl.appendChild(tb);
+      scroll.appendChild(tbl);
+      card.appendChild(scroll);
+    }
+  } catch (e) {
+    carregando.textContent = "Erro ao carregar: " + e.message;
+  }
 }
 
-function baixarUsuariosCSV(us) {
-  const esc = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-  const head = ["Email", "Cadastro", "Ultimo login", "Ultima atividade", "Funis", "Visitantes", "Conversas"];
-  const corpo = us.map(u => [u.email, u.criado_em, u.ultimo_login, u.ultima_atividade, u.funis, u.visitantes, u.conversas].map(esc).join(","));
-  const csv = "﻿" + head.map(esc).join(",") + "\n" + corpo.join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "usuarios-chatweb.csv";
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast("⬇️ Lista baixada (CSV)!");
+function formatarData(iso) {
+  try { return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }); } catch (e) { return "—"; }
 }
 
 function dashSidebar(activeKey) {
@@ -3525,7 +3551,9 @@ if (document.getElementById("btnEntrar")) {
     loginMsg("Entrando…");
     try {
       const r = await apiLogin(email, senha);
-      if (r && r.usuario) {
+      if (r && r.pendente) {
+        loginMsg(r.erro || "Sua conta esta aguardando aprovacao do administrador.", true);
+      } else if (r && r.usuario) {
         USUARIO = r.usuario;
         localStorage.setItem("chatweb_user_email", r.usuario.email);
         localStorage.setItem("chatweb_user_nome", r.usuario.nome || "");
@@ -3547,7 +3575,9 @@ if (document.getElementById("btnEntrar")) {
     loginMsg("Criando conta…");
     try {
       const r = await apiCadastro(email, senha, email.split("@")[0]);
-      if (r && r.usuario) {
+      if (r && r.pendente) {
+        loginMsg("Conta criada! Aguarde a aprovacao do administrador para acessar.", true);
+      } else if (r && r.usuario) {
         USUARIO = r.usuario;
         localStorage.setItem("chatweb_user_email", r.usuario.email);
         localStorage.setItem("chatweb_user_nome", r.usuario.nome || "");
