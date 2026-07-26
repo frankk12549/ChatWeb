@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChatWeb">
-<meta name="theme-color" content="#1a1a1a">
+<meta name="theme-color" content="#075E54">
 <link rel="manifest" href="manifest.webmanifest">
 <!-- Supabase removido (modo bypass) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -69,9 +69,9 @@
       box-shadow: 0 40px 100px -22px rgba(0,0,0,.85), 0 0 0 2px rgba(255,255,255,.05), inset 0 0 0 1px rgba(255,255,255,.06); }
   }
 
-  .header { background: #1a1a1a; color: #fff; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: calc(11px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 11px calc(12px + env(safe-area-inset-left)); flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,.2); z-index: 5; }
+  .header { background: #075E54; color: #fff; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: calc(11px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 11px calc(12px + env(safe-area-inset-left)); flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,.2); z-index: 5; }
   .header .back { font-size: 22px; line-height: 1; opacity: .9; }
-  .header .avatar { width: 40px; height: 40px; border-radius: 50%; background: #2a2a2a; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 17px; overflow: hidden; flex-shrink: 0; }
+  .header .avatar { width: 40px; height: 40px; border-radius: 50%; background: #075E54; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 17px; overflow: hidden; flex-shrink: 0; }
   .header .avatar img { width: 100%; height: 100%; object-fit: cover; }
   .header .info { line-height: 1.25; flex: 1; min-width: 0; }
   .header .info .name { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -90,7 +90,7 @@
 
   .bubble { max-width: 80%; padding: 6px 9px 8px; border-radius: 8px; font-size: 14.7px; line-height: 1.4; color: #111b21; position: relative; box-shadow: 0 1px .5px rgba(0,0,0,.13); word-wrap: break-word; white-space: pre-wrap; }
   .in .bubble { background: #fff; border-top-left-radius: 0; }
-  .out .bubble { background: #FFF9C4; border-top-right-radius: 0; }
+  .out .bubble { background: #D9FDD3; border-top-right-radius: 0; }
   .bubble .time { font-size: 10.5px; color: #667781; float: right; margin: 6px -2px -4px 8px; }
   .out .bubble .time::after { content: " ✓✓"; color: #53bdeb; }
   .bubble img.media { width: 100%; border-radius: 6px; margin-bottom: 5px; display: block; }
@@ -112,21 +112,21 @@
   .bubble.imagem .legenda { padding: 3px 6px 0; }
 
   .typing { display: inline-flex; gap: 4px; padding: 12px 12px; }
-  .typing span { width: 7px; height: 7px; border-radius: 50%; background: #9aa4a9; animation: blink 1.2s infinite both; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: #8696a0; animation: blink 1.2s infinite both; }
   .typing span:nth-child(2) { animation-delay: .2s; }
   .typing span:nth-child(3) { animation-delay: .4s; }
   @keyframes blink { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
 
   .options { display: flex; flex-direction: column; gap: 7px; padding: 6px 4px 12px; align-items: flex-end; }
-  .opt { background: #fff; color: #027eb5; border: none; padding: 11px 16px; border-radius: 8px; font-size: 14.5px; font-weight: 500; cursor: pointer; box-shadow: 0 1px 1px rgba(0,0,0,.12); max-width: 80%; text-align: center; transition: transform .08s, background .15s; }
-  .opt:hover { background: #f3f9fb; }
+  .opt { background: #fff; color: #008069; border: 1px solid #008069; padding: 11px 16px; border-radius: 8px; font-size: 14.5px; font-weight: 500; cursor: pointer; box-shadow: 0 1px 1px rgba(0,0,0,.12); max-width: 80%; text-align: center; transition: transform .08s, background .15s; }
+  .opt:hover { background: #f0faf6; }
   .opt:active { transform: scale(.97); }
-  .opt.cta { background: #FFD700; color: #fff; font-weight: 600; box-shadow: 0 2px 6px rgba(255,215,0,.45); }
-  .opt.cta:hover { background: #22c15e; }
+  .opt.cta { background: #00A884; color: #fff; font-weight: 600; box-shadow: 0 2px 6px rgba(0,168,132,.45); }
+  .opt.cta:hover { background: #008f72; }
 
   .inputbar { flex-shrink: 0; background: #f0f2f5; padding: 8px calc(10px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left)); display: flex; align-items: center; gap: 8px; }
   .inputbar .campo { flex: 1; background: #fff; border-radius: 22px; padding: 10px 16px; color: #111b21; font-size: 14px; border: none; outline: none; }
-  .inputbar .send { width: 42px; height: 42px; border-radius: 50%; background: #FFD700; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; flex-shrink: 0; cursor: pointer; }
+  .inputbar .send { width: 42px; height: 42px; border-radius: 50%; background: #00A884; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; flex-shrink: 0; cursor: pointer; }
   .inputbar .anexo { border: none; background: transparent; font-size: 20px; line-height: 1; width: 34px; height: 40px; flex-shrink: 0; cursor: pointer; opacity: .8; padding: 0; }
   .inputbar .anexo:hover { opacity: 1; }
   .inputbar .anexo.gravando { color: #fff; background: #c0392b; border-radius: 50%; width: 40px; opacity: 1; }
@@ -4279,7 +4279,14 @@ async function carregarSlug() {
     if (fluxo && fluxo.id && !fluxo.erro) {
       var blocos = typeof fluxo.blocos === "string" ? JSON.parse(fluxo.blocos) : (fluxo.blocos || []);
       try {
-        var arq = await apiBuscarArquivos(fluxo.id);
+        var arq = null;
+        try {
+          var rr = await fetch("/api/arquivos?fluxo_id=" + encodeURIComponent(fluxo.id));
+          arq = await rr.json();
+        } catch (e1) {}
+        if (!arq || !Array.isArray(arq) || !arq.length) {
+          try { arq = await apiBuscarArquivos(fluxo.id); } catch (e2) {}
+        }
         if (arq && arq.length) blocos = restaurarArquivos(blocos, arq);
       } catch (e) {}
       var cfg = typeof fluxo.config === "string" ? JSON.parse(fluxo.config) : (fluxo.config || {});
@@ -4300,7 +4307,14 @@ async function carregarLinkCurto() {
     if (fluxo && !fluxo.erro) {
       var blocos = fluxo.blocos || [];
       try {
-        var arq = await apiBuscarArquivos(fluxo.id);
+        var arq = null;
+        try {
+          var rr = await fetch("/api/arquivos?fluxo_id=" + encodeURIComponent(fluxo.id));
+          arq = await rr.json();
+        } catch (e1) {}
+        if (!arq || !Array.isArray(arq) || !arq.length) {
+          try { arq = await apiBuscarArquivos(fluxo.id); } catch (e2) {}
+        }
         if (arq && arq.length) blocos = restaurarArquivos(blocos, arq);
       } catch (e) {}
       d = { config: fluxo.config, blocos: blocos, owner: fluxo.owner_id, fid: fluxo.id };

@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
       if (!fluxo_id) return res.status(400).json({ erro: "fluxo_id obrigatório." });
 
       const rows = await sql`SELECT id, chave, dados FROM arquivos WHERE fluxo_id = ${fluxo_id}`;
-      return res.status(200).json(rows);
+      return res.status(200).json(Array.from(rows));
     }
 
     // POST — salvar arquivos (batch) de um fluxo
