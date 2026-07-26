@@ -1370,7 +1370,7 @@ function bolhaMidiaChat(texto, direcao) {
   row.appendChild(bub); chat.appendChild(row); scrollDown();
 }
 // A empresa pode mandar texto, imagem, áudio ou arquivo
-function receberDaEmpresa(texto) { bolhaMidiaChat(texto, "in"); }
+function receberDaEmpresa(texto) { if (texto && texto.slice(0, 10) === "__bloco__:") { try { var blk = JSON.parse(texto.slice(10)); if (blk && blk.tipo === "botao") { mostrarBotao(blk); return; } } catch (e) {} } bolhaMidiaChat(texto, "in"); }
 function mostrarBotao(b) {
   const box = document.createElement("div"); box.className = "options";
   const btn = document.createElement("button"); btn.className = "opt" + (b.cta ? " cta" : "");
@@ -2971,16 +2971,7 @@ async function renderConversa(sessao) {
       else if (b.tipo === "imagem") texto = b.img;
       else if (b.tipo === "audio") texto = b.audio;
       else if (b.tipo === "botao") {
-        if (b.destino === "pagamento") {
-          var linksPag = cfg.linksPagamento || [];
-          var idx = b.linkPagamentoIdx || 0;
-          if (idx < 0 || idx >= linksPag.length) idx = 0;
-          var nomePag = linksPag[idx] ? linksPag[idx].nome || "Link " + (idx + 1) : "Link de pagamento";
-          texto = "💳 " + (b.text || "Pagar agora") + " → " + nomePag;
-        }
-        else if (b.destino === "whatsapp") texto = "💬 " + (b.text || "Falar no WhatsApp") + "\nhttps://wa.me/" + (cfg.whatsapp || "");
-        else if (b.destino === "link") texto = (b.text || "Abrir") + "\n" + (b.link || "");
-        else texto = null; // atendente: ignora (já está no atendimento)
+        texto = "__bloco__:" + JSON.stringify(b);
       }
       if (texto == null || texto === "") continue;
       await apiEnviarMensagem(sessao, fx.id, "empresa", texto);
@@ -4203,7 +4194,7 @@ if (btnTema) btnTema.onclick = alternarTema;
 try { aplicarTema(localStorage.getItem("falow_tema") || "claro"); } catch (e) { aplicarTema("claro"); }
 
 /* ----- campo do cliente (ele pode digitar normalmente) ----- */
-let msgClienteVistas = 0;   // maior id de mensagem "empresa" já mostrada ao cliente
+let msgClienteVistas = "";   // maior id de mensagem "empresa" já mostrada ao cliente
 function enviarMensagemNuvem(remetente, texto) {
   if (!OWNER_ID) return;
   apiEnviarMensagem(SESSAO, FLOW_ID || null, remetente, texto);
@@ -4295,7 +4286,7 @@ function sugerirAddHome() {
 function iniciarPollingCliente() {
   if (EDITAVEL) return;   // só quem abre o funil publicado
   setInterval(async function () {
-    if (!sb || !OWNER_ID) return;
+    if (!OWNER_ID) return;
     try {
       const data = await apiCall("GET", "mensagens?sessao=" + encodeURIComponent(SESSAO) + "&apos_id=" + msgClienteVistas) || [];
       if (data && data.length) {
