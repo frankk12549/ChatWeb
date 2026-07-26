@@ -744,6 +744,8 @@
   body.tema-claro .dash-content .btn.icon2 { background: #eef2f4; color: #2a3942; }
   body.tema-claro .dash-content .btn.red { background: #ffe6e6; color: #c0392b; }
   body.tema-claro .dash-content .ed-select, body.tema-claro .dash-content .ed-input { color-scheme: light; }
+  body.tema-claro .dash-content .ed-select option { color: #111b21; background: #fff; }
+  body.tema-claro .dash-content .ed-input option { color: #111b21; background: #fff; }
   body.tema-claro .dash-content .dica-card .dica-txt { color: #445; }
   body.tema-claro .dash-content .dica-card .dica-txt b { color: #B8860B; }
   body.tema-claro .dash-content .resp-tbl th { background: #f4f8f7; color: #1a1a1a; border-bottom-color: #e2e8ea; }
@@ -2808,7 +2810,8 @@ async function renderConfiguracoes() {
 
   var lblTipo = h("label", { style: "font-size:12px;font-weight:500;color:rgba(255,255,255,.6);margin-bottom:4px;display:block" }, "Tipo de conta");
   var selTipo = h("select", { class: "ed-input", style: "height:42px" });
-  ["Admin", "Gerente", "Atendente", "Visualizador"].forEach(function(t) {
+  var tiposConta = EH_ADMIN() ? ["Admin", "Gerente", "Atendente", "Visualizador"] : ["Gerente", "Atendente", "Visualizador"];
+  tiposConta.forEach(function(t) {
     var opt = document.createElement("option");
     opt.value = t; opt.textContent = t;
     if (t === savedTipo) opt.selected = true;
