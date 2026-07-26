@@ -506,7 +506,7 @@
   .dt-user .un { font-size: 12px; font-weight: 700; color: #fff; line-height: 1; }
   .dt-user .ue { font-size: 10px; color: rgba(255,255,255,.5); margin-top: 2px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .dash-content { width: 100%; max-width: 1200px; margin: 0 auto; padding: 26px 22px 60px; }
+  .dash-content { width: 100%; max-width: 1200px; margin: 0 auto; padding: 26px 22px 60px; background: transparent; }
   @media (max-width: 640px) { .dash-content { padding: 16px 14px 60px; } }
   .dash-hero { display: flex; flex-direction: column; gap: 16px; }
   @media (min-width: 768px) { .dash-hero { flex-direction: row; align-items: flex-end; justify-content: space-between; } }
@@ -1341,6 +1341,9 @@ async function tocarFluxo() {
     else balaoBot(b.texto || "");
     if (b.waitForResponse) {
       await esperarRespostaLivre();
+      if (g !== geracao) return;
+      const waitAfter = Number(b.delayAfterResponse) || 0;
+      if (waitAfter > 0) await sleep(waitAfter * 1000);
       if (g !== geracao) return;
     }
     await sleep(280);
@@ -3437,8 +3440,12 @@ function campoDelay(b) {
         h("input", { class: "ed-input", type: "number", min: "0", step: "0.5", value: b.delay != null ? b.delay : 1.5, oninput: e => b.delay = parseFloat(e.target.value) || 0 })),
       h("div", { style: "flex:1;min-width:140px" },
         h("label", { class: "chk", style: "margin-top:18px" },
-          h("input", { type: "checkbox", ...(b.waitForResponse ? { checked: "checked" } : {}), onchange: e => b.waitForResponse = e.target.checked }),
-          "⏳ Esperar resposta do lead"))));
+          h("input", { type: "checkbox", ...(b.waitForResponse ? { checked: "checked" } : {}), onchange: e => { b.waitForResponse = e.target.checked; renderEditor(); } }),
+          "⏳ Esperar resposta do lead"))),
+    b.waitForResponse ? h("div", { style: "margin-top:8px" },
+      h("label", null, "⏳ Espera após resposta ", h("span", { class: "hint" }, "(segundos — tempo extra pra lead enviar mais msgs)")),
+      h("input", { class: "ed-input", type: "number", min: "0", step: "1", value: b.delayAfterResponse || 0, oninput: e => b.delayAfterResponse = parseFloat(e.target.value) || 0 }),
+      h("div", { style: "font-size:12px;color:#8a97a0;margin-top:4px" }, "Ex: 5s = espera 5 segundos depois que o lead respondeu antes de mandar a próxima mensagem")) : null);
 }
 
 function renderBloco(b, i, cfg) {
