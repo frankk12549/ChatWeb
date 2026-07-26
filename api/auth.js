@@ -4,9 +4,15 @@ const { sql } = require("./_db");
 
 const SECRET = process.env.JWT_SECRET || "fallback-secret";
 
+function verificarToken(req) {
+  const auth = req.headers.authorization || "";
+  if (!auth.startsWith("Bearer ")) return null;
+  try { return jwt.verify(auth.slice(7), SECRET); } catch (e) { return null; }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
 
@@ -44,6 +50,25 @@ module.exports = async function handler(req, res) {
       const u = rows[0];
       const token = jwt.sign({ id: u.id, email: u.email, nome: u.nome }, SECRET, { expiresIn: "30d" });
       return res.status(201).json({ token, usuario: { id: u.id, email: u.email, nome: u.nome }, pendente: true });
+    }
+
+    // PATCH — alterar senha (autenticado)
+    if (req.method === "PATCH") {
+      const user = verificarToken(req);
+      if (!user) return res.status(401).json({ erro: "Nao autenticado." });
+      const { senha_atual, nova_senha } = req.body || {};
+      if (!senha_atual || !nova_senha) return res.status(400).json({ erro: "Senha atual e nova senha obrigatorias." });
+      if (nova_senha.length < 6) return res.status(400).json({ erro: "Nova senha deve ter pelo menos 6 caracteres." });
+
+      const rows = await sql`SELECT id, senha_hash FROM usuarios WHERE id = ${user.id}`;
+      if (!rows.length) return res.status(404).json({ erro: "Usuario nao encontrado." });
+
+      const ok = await bcrypt.compare(senha_atual, rows[0].senha_hash);
+      if (!ok) return res.status(401).json({ erro: "Senha atual incorreta." });
+
+      const hash = await bcrypt.hash(nova_senha, 10);
+      await sql`UPDATE usuarios SET senha_hash = ${hash} WHERE id = ${user.id}`;
+      return res.status(200).json({ ok: true, mensagem: "Senha alterada com sucesso." });
     }
 
     return res.status(405).json({ erro: "Metodo nao permitido." });

@@ -1002,7 +1002,7 @@ function carregarProjeto() {
   return p;
 }
 function salvarLocal() { try { localStorage.setItem(PROJ_KEY, JSON.stringify(PROJETO)); } catch (e) {} }
-function salvarProjeto() { salvarLocal(); if (USUARIO && API_TOKEN) salvarProjetoNuvem(); }
+function salvarProjeto() { salvarLocal(); if (USUARIO && API_TOKEN) { USER_CONFIG.atendimentos = PROJETO.atendimentos || []; salvarProjetoNuvem(); } }
 function fluxoAtual() { return PROJETO.fluxos.find(f => f.id === PROJETO.atual) || PROJETO.fluxos[0]; }
 function aplicarAtivo() { const a = fluxoAtual(); if (a) { CONFIG = a.config; BLOCOS = a.blocos; } }
 
@@ -1074,6 +1074,14 @@ async function apiBuscarMensagens(sessaoId) {
 }
 async function apiRegistrarEvento(fluxoId, sessaoId, tipo, dados) {
   return await apiCall("POST", "eventos", { fluxo_id: fluxoId, sessao_id: sessaoId, tipo, dados });
+}
+async function apiAlterarSenha(senhaAtual, novaSenha) {
+  return await apiCall("PATCH", "auth", { senha_atual: senhaAtual, nova_senha: novaSenha });
+}
+let USER_CONFIG = {};  // config_jsonb do usuário (integrações, tema, atendimentos, etc.)
+async function apiSalvarUserConfig(cfg) {
+  USER_CONFIG = cfg;
+  return await apiPerfilSalvar({ config_jsonb: cfg });
 }
 
 if (TEM_LINK) {
@@ -2028,10 +2036,22 @@ function renderIntegracoes() {
   var statusEl = h("div", { class: "resp-resumo", style: "margin-top:12px" }, botURL ? "Verificando conexao..." : "Ainda nao conectado. Preencha o endereco acima.");
   card.appendChild(statusEl);
   var acoes = h("div", { style: "display:flex;gap:8px;flex-wrap:wrap;margin-top:14px" });
-  acoes.appendChild(h("button", { class: "btn", onclick: function() { localStorage.setItem("falow_bot_url", inp.value.trim()); toast("Endereco salvo!"); renderIntegracoes(); } }, "Salvar"));
+  acoes.appendChild(h("button", { class: "btn", onclick: async function() {
+    localStorage.setItem("falow_bot_url", inp.value.trim());
+    USER_CONFIG.bot_url = inp.value.trim();
+    await apiSalvarUserConfig(USER_CONFIG);
+    toast("Endereco salvo!");
+    renderIntegracoes();
+  } }, "Salvar"));
   if (botURL) {
     acoes.appendChild(h("button", { class: "btn gray", onclick: function() { window.open(botURL, "_blank"); } }, "Abrir QR / Conectar WhatsApp"));
-    acoes.appendChild(h("button", { class: "btn gray", onclick: function() { localStorage.removeItem("falow_bot_url"); toast("Endereco removido."); renderIntegracoes(); } }, "Remover"));
+    acoes.appendChild(h("button", { class: "btn gray", onclick: async function() {
+      localStorage.removeItem("falow_bot_url");
+      delete USER_CONFIG.bot_url;
+      await apiSalvarUserConfig(USER_CONFIG);
+      toast("Endereco removido.");
+      renderIntegracoes();
+    } }, "Remover"));
   }
   card.appendChild(acoes);
   content.appendChild(card);
@@ -2049,9 +2069,25 @@ function renderIntegracoes() {
   var statusN8n = h("div", { class: "resp-resumo", style: "margin-top:12px" }, n8nURL ? "Webhook configurado" : "Ainda nao configurado.");
   cardN8n.appendChild(statusN8n);
   var acoesN8n = h("div", { style: "display:flex;gap:8px;flex-wrap:wrap;margin-top:14px" });
-  acoesN8n.appendChild(h("button", { class: "btn", onclick: function() { localStorage.setItem("chatweb_n8n_url", inpN8n.value.trim()); localStorage.setItem("chatweb_n8n_key", inpKey.value.trim()); toast("Configuracao n8n salva!"); renderIntegracoes(); } }, "Salvar"));
+  acoesN8n.appendChild(h("button", { class: "btn", onclick: async function() {
+    localStorage.setItem("chatweb_n8n_url", inpN8n.value.trim());
+    localStorage.setItem("chatweb_n8n_key", inpKey.value.trim());
+    USER_CONFIG.n8n_url = inpN8n.value.trim();
+    USER_CONFIG.n8n_key = inpKey.value.trim();
+    await apiSalvarUserConfig(USER_CONFIG);
+    toast("Configuracao n8n salva!");
+    renderIntegracoes();
+  } }, "Salvar"));
   if (n8nURL) {
-    acoesN8n.appendChild(h("button", { class: "btn gray", onclick: function() { localStorage.removeItem("chatweb_n8n_url"); localStorage.removeItem("chatweb_n8n_key"); toast("Configuracao n8n removida."); renderIntegracoes(); } }, "Remover"));
+    acoesN8n.appendChild(h("button", { class: "btn gray", onclick: async function() {
+      localStorage.removeItem("chatweb_n8n_url");
+      localStorage.removeItem("chatweb_n8n_key");
+      delete USER_CONFIG.n8n_url;
+      delete USER_CONFIG.n8n_key;
+      await apiSalvarUserConfig(USER_CONFIG);
+      toast("Configuracao n8n removida.");
+      renderIntegracoes();
+    } }, "Remover"));
   }
   cardN8n.appendChild(acoesN8n);
   if (!n8nURL) {
@@ -2872,9 +2908,8 @@ async function renderConfiguracoes() {
   var perfilDB = null;
   try { perfilDB = await apiPerfilBuscar(); } catch (e) { }
 
-  var savedEmail = localStorage.getItem("chatweb_user_email") || ((USUARIO && USUARIO.email) || "voce@empresa.com");
+  var savedEmail = (perfilDB && perfilDB.email) || localStorage.getItem("chatweb_user_email") || ((USUARIO && USUARIO.email) || "voce@empresa.com");
   var savedNome = perfilDB?.nome || localStorage.getItem("chatweb_user_nome") || (savedEmail.split("@")[0] || "Admin").replace(/[._-]+/g, " ").replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-  var savedTipo = localStorage.getItem("chatweb_user_tipo") || "Admin";
   var savedDominio = perfilDB?.dominio || PROJETO.dominio || "";
   var savedAvatar = CONFIG.avatarLetra || savedNome.charAt(0) || "A";
 
@@ -2954,13 +2989,16 @@ async function renderConfiguracoes() {
   var inpEmailConf = h("input", { class: "ed-input", type: "email", placeholder: "Repita o e-mail" });
   emailGrid.appendChild(h("div", null, lblEmailConf, inpEmailConf));
   emailCard.appendChild(emailGrid);
-  emailCard.appendChild(h("button", { class: "btn", style: "margin-top:14px", onclick: function() {
+  emailCard.appendChild(h("button", { class: "btn", style: "margin-top:14px", onclick: async function() {
     var novo = inpEmail.value.trim();
     var conf = inpEmailConf.value.trim();
     if (!novo || novo.indexOf("@") === -1) { toast("E-mail invalido."); return; }
     if (novo !== conf) { toast("Os e-mails nao coincidem."); return; }
-    localStorage.setItem("chatweb_user_email", novo);
-    toast("E-mail atualizado!");
+    this.disabled = true; this.textContent = "Atualizando...";
+    var r = await apiPerfilSalvar({ email: novo });
+    if (r && r.email) { localStorage.setItem("chatweb_user_email", r.email); USUARIO.email = r.email; toast("E-mail atualizado!"); inpEmailConf.value = ""; }
+    else { toast(r && r.erro ? r.erro : "Erro ao atualizar e-mail."); }
+    this.disabled = false; this.textContent = "Atualizar e-mail";
   } }, "Atualizar e-mail"));
   content.appendChild(emailCard);
 
@@ -2979,14 +3017,18 @@ async function renderConfiguracoes() {
   var inpSenhaConf = h("input", { class: "ed-input", type: "password", placeholder: "Repita a nova senha" });
   senhaGrid.appendChild(h("div", null, lblSenhaConf, inpSenhaConf));
   senhaCard.appendChild(senhaGrid);
-  senhaCard.appendChild(h("button", { class: "btn", style: "margin-top:14px", onclick: function() {
+  senhaCard.appendChild(h("button", { class: "btn", style: "margin-top:14px", onclick: async function() {
+    var atual = inpSenhaAtual.value;
     var nova = inpSenhaNova.value;
     var conf = inpSenhaConf.value;
+    if (!atual) { toast("Digite sua senha atual."); return; }
     if (nova.length < 6) { toast("A nova senha deve ter no minimo 6 caracteres."); return; }
     if (nova !== conf) { toast("As senhas nao coincidem."); return; }
-    localStorage.setItem("chatweb_user_senha_hash", btoa(nova));
-    toast("Senha atualizada!");
-    inpSenhaAtual.value = ""; inpSenhaNova.value = ""; inpSenhaConf.value = "";
+    this.disabled = true; this.textContent = "Alterando...";
+    var r = await apiAlterarSenha(atual, nova);
+    if (r && r.ok) { toast("Senha alterada com sucesso!"); inpSenhaAtual.value = ""; inpSenhaNova.value = ""; inpSenhaConf.value = ""; }
+    else { toast(r && r.erro ? r.erro : "Erro ao alterar senha. Verifique a senha atual."); }
+    this.disabled = false; this.textContent = "Alterar senha";
   } }, "Alterar senha"));
   content.appendChild(senhaCard);
 
@@ -3586,6 +3628,8 @@ function alternarTemaUI() {
   const novo = document.body.classList.contains("tema-claro") ? "escuro" : "claro";
   try { localStorage.setItem("falow_ui", novo); } catch (e) {}
   aplicarTemaUI(novo);
+  USER_CONFIG.ui_theme = novo;
+  if (USUARIO && API_TOKEN) apiSalvarUserConfig(USER_CONFIG);
 }
 
 // Capa estática (no HTML) que cobre a tela enquanto o login é verificado — evita piscar a prévia do chat
@@ -3658,6 +3702,26 @@ async function onLogado() {
     const perfil = await apiPerfilBuscar();
     if (perfil && perfil.dominio) PROJETO.dominio = perfil.dominio;
     if (perfil && perfil.nome) { localStorage.setItem("chatweb_user_nome", perfil.nome); }
+    if (perfil && perfil.email) { localStorage.setItem("chatweb_user_email", perfil.email); }
+    if (perfil && perfil.config_jsonb) {
+      var cfg = perfil.config_jsonb;
+      if (typeof cfg === "string") { try { cfg = JSON.parse(cfg); } catch(e) { cfg = {}; } }
+      if (typeof cfg === "object" && cfg !== null) {
+      USER_CONFIG = cfg;
+      _ultimaConfigSalva = JSON.stringify(USER_CONFIG);
+      // Aplica preferências de tema salvas no servidor
+      if (USER_CONFIG.ui_theme) { aplicarTemaUI(USER_CONFIG.ui_theme); try { localStorage.setItem("falow_ui", USER_CONFIG.ui_theme); } catch(e){} }
+      if (USER_CONFIG.chat_theme) { aplicarTema(USER_CONFIG.chat_theme); try { localStorage.setItem("falow_tema", USER_CONFIG.chat_theme); } catch(e){} }
+      // Integrações
+      if (USER_CONFIG.bot_url) try { localStorage.setItem("falow_bot_url", USER_CONFIG.bot_url); } catch(e){}
+      if (USER_CONFIG.n8n_url) try { localStorage.setItem("chatweb_n8n_url", USER_CONFIG.n8n_url); } catch(e){}
+      if (USER_CONFIG.n8n_key) try { localStorage.setItem("chatweb_n8n_key", USER_CONFIG.n8n_key); } catch(e){}
+      // Atendimentos
+      if (Array.isArray(USER_CONFIG.atendimentos) && USER_CONFIG.atendimentos.length) {
+        PROJETO.atendimentos = USER_CONFIG.atendimentos;
+      }
+      }
+    }
   } catch (e) { }
   aplicarAtivo();
   ativarAdmin();
@@ -3700,6 +3764,7 @@ async function carregarProjetoNuvem() {
   } catch (e) { console.warn("Nuvem (ler):", e); }
 }
 let _fluxosSalvosNuvem = {};
+let _ultimaConfigSalva = "";
 async function salvarProjetoNuvem() {
   if (!API_TOKEN || !USUARIO) return;
   try {
@@ -3720,6 +3785,12 @@ async function salvarProjetoNuvem() {
           f.id = criado.id;
         }
       }
+    }
+    // Salva config_jsonb (atendimentos, integrações, temas) — debounce simples
+    var cfgStr = JSON.stringify(USER_CONFIG);
+    if (cfgStr !== _ultimaConfigSalva) {
+      _ultimaConfigSalva = cfgStr;
+      await apiPerfilSalvar({ config_jsonb: USER_CONFIG });
     }
   } catch (e) { console.warn("Nuvem (salvar):", e); }
 }
@@ -3827,6 +3898,8 @@ function alternarTema() {
   const novo = document.body.classList.contains("dark") ? "claro" : "dark";
   try { localStorage.setItem("falow_tema", novo); } catch (e) {}
   aplicarTema(novo);
+  USER_CONFIG.chat_theme = novo;
+  if (USUARIO && API_TOKEN) apiSalvarUserConfig(USER_CONFIG);
 }
 if (btnTema) btnTema.onclick = alternarTema;
 try { aplicarTema(localStorage.getItem("falow_tema") || "claro"); } catch (e) { aplicarTema("claro"); }
