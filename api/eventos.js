@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
       if (fluxo_id) {
         rows = await sql`SELECT id, fluxo_id, fluxo_id AS flow_id, sessao_id, sessao_id AS sessao, tipo, dados, criado_em FROM eventos WHERE fluxo_id = ${fluxo_id} ORDER BY criado_em DESC LIMIT 500`;
       } else {
-        rows = await sql`SELECT id, fluxo_id, fluxo_id AS flow_id, sessao_id, sessao_id AS sessao, tipo, dados, criado_em FROM eventos WHERE fluxo_id IN (SELECT id FROM fluxos WHERE owner_id = ${user.id}) ORDER BY criado_em DESC LIMIT 500`;
+        rows = await sql`SELECT id, fluxo_id, fluxo_id AS flow_id, sessao_id, sessao_id AS sessao, tipo, dados, criado_em FROM eventos WHERE fluxo_id IN (SELECT id::text FROM fluxos WHERE owner_id = ${user.id}) ORDER BY criado_em DESC LIMIT 500`;
       }
       return res.status(200).json(Array.from(rows));
     }
