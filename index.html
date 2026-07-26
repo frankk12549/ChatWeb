@@ -191,6 +191,7 @@
   .bloco.t-imagem { border-left-color: #027eb5; }
   .bloco.t-audio { border-left-color: #7b61ff; }
   .bloco.t-pergunta { border-left-color: #f0a500; }
+  .bloco.waiting { border-left-color: #FFD700 !important; box-shadow: 0 0 0 2px rgba(255,215,0,.15); }
   .bloco-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
   .bloco-top .tag { font-size: 12.5px; font-weight: 700; color: #1a1a1a; }
   .bloco-acoes { margin-left: auto; display: flex; gap: 5px; }
@@ -975,8 +976,7 @@ function fluxoAntigoParaBlocos(fluxo, inicio) {
 // normaliza um objeto {config, blocos} vindo de link/dados soltos
 function normalizarFluxoSolto(d) {
   const config = Object.assign({}, CONFIG_PADRAO, d.config || {});
-  let blocos = Array.isArray(d.blocos) ? d.blocos : (d.fluxo ? fluxoAntigoParaBlocos(d.fluxo, d.inicio) : clone(BLOCOS_PADRAO));
-  if (!blocos.length) blocos = clone(BLOCOS_PADRAO);
+  let blocos = Array.isArray(d.blocos) ? d.blocos : (d.fluxo ? fluxoAntigoParaBlocos(d.fluxo, d.inicio) : []);
   return { config: config, blocos: blocos };
 }
 
@@ -988,13 +988,12 @@ function carregarProjeto() {
     let base = null;
     try { const s2 = localStorage.getItem("atendimento_dados_v2"); if (s2) base = JSON.parse(s2); } catch (e) {}
     if (!base) { try { const s1 = localStorage.getItem("atendimento_dados_v1"); if (s1) base = JSON.parse(s1); } catch (e) {} }
-    const f = base ? normalizarFluxoSolto(base) : { config: clone(CONFIG_PADRAO), blocos: clone(BLOCOS_PADRAO) };
+    const f = base ? normalizarFluxoSolto(base) : { config: clone(CONFIG_PADRAO), blocos: [] };
     const id = novoId();
     p = { fluxos: [ { id: id, nome: "Meu atendimento", config: f.config, blocos: f.blocos } ], atual: id };
   }
   p.fluxos.forEach(fx => {
     fx.config = Object.assign({}, CONFIG_PADRAO, fx.config || {});
-    if (!Array.isArray(fx.blocos) || !fx.blocos.length) fx.blocos = clone(BLOCOS_PADRAO);
     if (!fx.id) fx.id = novoId();
     if (!fx.nome) fx.nome = "Fluxo";
   });
@@ -1105,7 +1104,7 @@ if (TEM_LINK) {
     PROJETO.atual = fluxoPorSlug.id; FLOW_ID = fluxoPorSlug.id;
     document.title = (fluxoPorSlug.config && fluxoPorSlug.config.empresa ? fluxoPorSlug.config.empresa : "ChatWeb");
   } else {
-    CONFIG = clone(CONFIG_PADRAO); BLOCOS = clone(BLOCOS_PADRAO);
+    CONFIG = clone(CONFIG_PADRAO); BLOCOS = [];
   }
 } else if (BAKED) {
   const f = normalizarFluxoSolto(FLUXO_EMBUTIDO);
@@ -1159,6 +1158,23 @@ function esperarResposta(b) {
     const tipo = b && b.tipoCampo;
     campo.type = tipo === "email" ? "email" : tipo === "telefone" ? "tel" : tipo === "numero" ? "number" : "text";
     campo.placeholder = tipo === "email" ? "Digite seu e-mail…" : tipo === "telefone" ? "Digite seu telefone…" : tipo === "nome" ? "Digite seu nome…" : "Digite sua resposta…";
+    campo.focus();
+    resolverResposta = valor => {
+      aguardandoResposta = false; resolverResposta = null;
+      campo.type = "text";
+      campo.placeholder = "Digite uma mensagem…";
+      resolve(valor);
+    };
+  });
+}
+
+function esperarRespostaLivre() {
+  return new Promise(resolve => {
+    aguardandoResposta = true;
+    const campo = document.getElementById("campoCliente");
+    setChatBloqueado(false);
+    campo.type = "text";
+    campo.placeholder = "Digite sua resposta…";
     campo.focus();
     resolverResposta = valor => {
       aguardandoResposta = false; resolverResposta = null;
@@ -1323,6 +1339,10 @@ async function tocarFluxo() {
     if (b.tipo === "audio") balaoAudioBot(b);
     else if (b.tipo === "imagem") balaoImagemBot(b);
     else balaoBot(b.texto || "");
+    if (b.waitForResponse) {
+      await esperarRespostaLivre();
+      if (g !== geracao) return;
+    }
     await sleep(280);
     if (g !== geracao) return;
   }
@@ -1502,7 +1522,7 @@ function novoFluxo() {
     if (nome === null) return;
     const id = novoId();
     const slugBase = (nome || "novo-fluxo").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    PROJETO.fluxos.push({ id: id, nome: (nome.trim() || "Novo fluxo"), slug: slugBase + "-" + Date.now().toString(36).slice(-3), config: clone(CONFIG_PADRAO), blocos: clone(BLOCOS_PADRAO) });
+    PROJETO.fluxos.push({ id: id, nome: (nome.trim() || "Novo fluxo"), slug: slugBase + "-" + Date.now().toString(36).slice(-3), config: clone(CONFIG_PADRAO), blocos: [] });
     salvarProjeto();
     abrirEditorFluxo(id);
   });
@@ -1694,8 +1714,7 @@ function importarFluxos(file) {
     let n = 0;
     lista.forEach(fx => {
       const cfg = Object.assign({}, CONFIG_PADRAO, fx.config || {});
-      let blocos = Array.isArray(fx.blocos) ? fx.blocos : (fx.fluxo ? fluxoAntigoParaBlocos(fx.fluxo, fx.inicio) : clone(BLOCOS_PADRAO));
-      if (!blocos.length) blocos = clone(BLOCOS_PADRAO);
+      let blocos = Array.isArray(fx.blocos) ? fx.blocos : (fx.fluxo ? fluxoAntigoParaBlocos(fx.fluxo, fx.inicio) : []);
       PROJETO.fluxos.push({ id: novoId(), nome: (fx.nome || "Importado"), config: cfg, blocos: blocos });
       n++;
     });
@@ -3412,15 +3431,22 @@ function renderEditor() {
 
 function campoDelay(b) {
   return h("div", { class: "fld delay-box" },
-    h("label", null, "⏱️ Tempo antes de enviar ", h("span", { class: "hint" }, "(segundos)")),
-    h("input", { class: "ed-input", type: "number", min: "0", step: "0.5", value: b.delay != null ? b.delay : 1.5, oninput: e => b.delay = parseFloat(e.target.value) || 0 }));
+    h("div", { style: "display:flex;align-items:center;gap:10px;flex-wrap:wrap" },
+      h("div", { style: "flex:1;min-width:140px" },
+        h("label", null, "⏱️ Tempo antes de enviar ", h("span", { class: "hint" }, "(segundos)")),
+        h("input", { class: "ed-input", type: "number", min: "0", step: "0.5", value: b.delay != null ? b.delay : 1.5, oninput: e => b.delay = parseFloat(e.target.value) || 0 })),
+      h("div", { style: "flex:1;min-width:140px" },
+        h("label", { class: "chk", style: "margin-top:18px" },
+          h("input", { type: "checkbox", ...(b.waitForResponse ? { checked: "checked" } : {}), onchange: e => b.waitForResponse = e.target.checked }),
+          "⏳ Esperar resposta do lead"))));
 }
 
 function renderBloco(b, i, cfg) {
   const titulos = { texto: "✍️ Texto", pergunta: "❓ Pergunta (captura resposta)", botao: "🔘 Botão (com link)", imagem: "🖼️ Imagem", audio: "🎤 Áudio" };
-  const card = h("div", { class: "bloco t-" + b.tipo });
+  const tagTxt = (i + 1) + ". " + (titulos[b.tipo] || b.tipo) + (b.waitForResponse ? " ⏳ Esperando resposta" : "");
+  const card = h("div", { class: "bloco t-" + b.tipo + (b.waitForResponse ? " waiting" : "") });
   card.appendChild(h("div", { class: "bloco-top" },
-    h("span", { class: "tag" }, (i + 1) + ". " + (titulos[b.tipo] || b.tipo)),
+    h("span", { class: "tag" }, tagTxt),
     h("div", { class: "bloco-acoes" },
       h("button", { class: "btn icon2", title: "Subir", onclick: () => moverBloco(i, -1) }, "▲"),
       h("button", { class: "btn icon2", title: "Descer", onclick: () => moverBloco(i, 1) }, "▼"),
@@ -3765,7 +3791,6 @@ function mostrarPaywall() { removerBootCover(); document.getElementById("paywall
 function saneiaProjeto() {
   PROJETO.fluxos.forEach(fx => {
     fx.config = Object.assign({}, CONFIG_PADRAO, fx.config || {});
-    if (!Array.isArray(fx.blocos) || !fx.blocos.length) fx.blocos = clone(BLOCOS_PADRAO);
     if (!fx.id) fx.id = novoId();
     if (!fx.nome) fx.nome = "Fluxo";
   });
