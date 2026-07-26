@@ -3227,11 +3227,13 @@ function renderEditor() {
   pagSection.appendChild(h("div", { class: "hint", style: "margin-bottom:8px" }, "Adicione quantos links quiser. Cada botão de pagamento no fluxo pode usar um diferente."));
   var pagList = h("div", { style: "display:flex;flex-direction:column;gap:6px" });
   cfg.linksPagamento.forEach(function(lnk, idx) {
-    var row = h("div", { style: "display:flex;gap:6px;align-items:center" });
-    var inpNome = h("input", { class: "ed-input", value: lnk.nome || "", placeholder: "Nome (ex: Link 47)", style: "flex:1", oninput: function(e) { lnk.nome = e.target.value; } });
-    var inpUrl = h("input", { class: "ed-input", value: lnk.url || "", placeholder: "https://...", style: "flex:2", oninput: function(e) { lnk.url = e.target.value; } });
+    var row = h("div", { style: "display:flex;flex-direction:column;gap:6px;padding:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px" });
+    var rowTop = h("div", { style: "display:flex;gap:6px;align-items:center" });
+    var inpNome = h("input", { class: "ed-input", value: lnk.nome || "", placeholder: "Nome (ex: Link 47)", style: "flex:1;min-width:0", oninput: function(e) { lnk.nome = e.target.value; } });
     var btnRem = h("button", { class: "btn sm red", onclick: function() { cfg.linksPagamento.splice(idx, 1); renderEditor(); } }, "✕");
-    row.appendChild(inpNome); row.appendChild(inpUrl); row.appendChild(btnRem);
+    rowTop.appendChild(inpNome); rowTop.appendChild(btnRem);
+    var inpUrl = h("input", { class: "ed-input", value: lnk.url || "", placeholder: "https://...", style: "width:100%", oninput: function(e) { lnk.url = e.target.value; } });
+    row.appendChild(rowTop); row.appendChild(inpUrl);
     pagList.appendChild(row);
   });
   pagSection.appendChild(pagList);
