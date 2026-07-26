@@ -7,37 +7,57 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    // GET — lista mensagens de uma sessão
     if (req.method === "GET") {
-      const { sessao, fluxo_id, since, limit } = req.query || {};
-      if (!sessao && !fluxo_id && !since) return res.status(400).json({ erro: "sessao, fluxo_id ou since obrigatório." });
+      const { sessao, fluxo_id, since, limit, owner_id } = req.query || {};
+      const lim = Math.min(parseInt(limit) || 500, 1000);
 
-      const lim = Math.min(parseInt(limit) || 200, 500);
-      let rows;
-      if (since) {
-        rows = await sql`SELECT id, sessao_id, fluxo_id, remetente, texto, criado_em FROM mensagens WHERE remetente = 'cliente' AND criado_em > ${new Date(parseInt(since)).toISOString()}::timestamp ORDER BY criado_em DESC LIMIT ${lim}`;
-      } else if (sessao) {
-        rows = await sql`SELECT id, sessao_id, fluxo_id, remetente, texto, criado_em FROM mensagens WHERE sessao_id = ${sessao} ORDER BY criado_em ASC LIMIT ${lim}`;
-      } else {
-        rows = await sql`SELECT id, sessao_id, fluxo_id, remetente, texto, criado_em FROM mensagens WHERE fluxo_id = ${fluxo_id} ORDER BY criado_em DESC LIMIT ${lim}`;
+      if (owner_id) {
+        const rows = await sql`SELECT id, sessao_id, sessao_id AS sessao, fluxo_id, fluxo_id AS flow_id, remetente, texto, criado_em
+          FROM mensagens
+          WHERE fluxo_id IN (SELECT id FROM fluxos WHERE owner_id = ${owner_id})
+          ORDER BY criado_em DESC LIMIT ${lim}`;
+        return res.status(200).json(rows);
       }
-      return res.status(200).json(rows);
+
+      if (since) {
+        const rows = await sql`SELECT id, sessao_id, sessao_id AS sessao, fluxo_id, fluxo_id AS flow_id, remetente, texto, criado_em
+          FROM mensagens WHERE remetente = 'cliente'
+          AND criado_em > ${new Date(parseInt(since)).toISOString()}::timestamp
+          ORDER BY criado_em DESC LIMIT ${lim}`;
+        return res.status(200).json(rows);
+      }
+
+      if (sessao) {
+        const rows = await sql`SELECT id, sessao_id, sessao_id AS sessao, fluxo_id, fluxo_id AS flow_id, remetente, texto, criado_em
+          FROM mensagens WHERE sessao_id = ${sessao}
+          ORDER BY criado_em ASC LIMIT ${lim}`;
+        return res.status(200).json(rows);
+      }
+
+      if (fluxo_id) {
+        const rows = await sql`SELECT id, sessao_id, sessao_id AS sessao, fluxo_id, fluxo_id AS flow_id, remetente, texto, criado_em
+          FROM mensagens WHERE fluxo_id = ${fluxo_id}
+          ORDER BY criado_em DESC LIMIT ${lim}`;
+        return res.status(200).json(rows);
+      }
+
+      return res.status(400).json({ erro: "Parametro obrigatório: owner_id, sessao, fluxo_id ou since." });
     }
 
-    // POST — envia mensagem
     if (req.method === "POST") {
       const { sessao_id, fluxo_id, remetente, texto } = req.body || {};
-      if (!sessao_id || !remetente) return res.status(400).json({ erro: "sessao_id e remetente obrigatórios." });
+      if (!sessao_id || !remetente) return res.status(400).json({ erro: "sessao_id e remetente obrigatorios." });
 
-      const rows = await sql`INSERT INTO mensagens (sessao_id, fluxo_id, remetente, texto)
-        VALUES (${sessao_id}, ${fluxo_id || null}, ${remetente}, ${texto || ""})
-        RETURNING id, sessao_id, fluxo_id, remetente, texto, criado_em`;
+      const id = "m_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      const rows = await sql`INSERT INTO mensagens (id, sessao_id, fluxo_id, remetente, texto)
+        VALUES (${id}, ${sessao_id}, ${fluxo_id || null}, ${remetente}, ${texto || ""})
+        RETURNING id, sessao_id, sessao_id AS sessao, fluxo_id, fluxo_id AS flow_id, remetente, texto, criado_em`;
       return res.status(201).json(rows[0]);
     }
 
-    return res.status(405).json({ erro: "Método não permitido." });
+    return res.status(405).json({ erro: "Metodo nao permitido." });
   } catch (e) {
     console.error("mensagens error:", e);
-    return res.status(500).json({ erro: "Erro interno." });
+    return res.status(500).json({ erro: "Erro interno.", detalhe: e.message });
   }
 };

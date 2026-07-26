@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
 
       // Busca por slug (público — lead abre o link)
       if (slug) {
-        const rows = await sql`SELECT id, nome, slug, config, blocos, publicado FROM fluxos WHERE slug = ${slug} LIMIT 1`;
+        const rows = await sql`SELECT id, nome, slug, config, blocos, publicado, owner_id FROM fluxos WHERE slug = ${slug} LIMIT 1`;
         if (!rows.length) return res.status(404).json({ erro: "Funil não encontrado." });
         return res.status(200).json(rows[0]);
       }

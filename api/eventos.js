@@ -16,18 +16,17 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    // POST — registra evento (público — lead gera eventos)
     if (req.method === "POST") {
       const { fluxo_id, sessao_id, tipo, dados } = req.body || {};
       if (!tipo) return res.status(400).json({ erro: "tipo obrigatório." });
 
-      const rows = await sql`INSERT INTO eventos (fluxo_id, sessao_id, tipo, dados)
-        VALUES (${fluxo_id || null}, ${sessao_id || null}, ${tipo}, ${JSON.stringify(dados || {})})
-        RETURNING id, fluxo_id, sessao_id, tipo, dados, criado_em`;
+      const id = "ev_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      const rows = await sql`INSERT INTO eventos (id, fluxo_id, sessao_id, tipo, dados)
+        VALUES (${id}, ${fluxo_id || null}, ${sessao_id || null}, ${tipo}, ${JSON.stringify(dados || {})})
+        RETURNING id, fluxo_id, fluxo_id AS flow_id, sessao_id, sessao_id AS sessao, tipo, dados, criado_em`;
       return res.status(201).json(rows[0]);
     }
 
-    // GET — busca eventos (autenticado, pra métricas)
     if (req.method === "GET") {
       const user = verificarToken(req);
       if (!user) return res.status(401).json({ erro: "Não autorizado." });
@@ -35,9 +34,9 @@ module.exports = async function handler(req, res) {
       const { fluxo_id, periodo } = req.query || {};
       let rows;
       if (fluxo_id) {
-        rows = await sql`SELECT id, fluxo_id, sessao_id, tipo, dados, criado_em FROM eventos WHERE fluxo_id = ${fluxo_id} ORDER BY criado_em DESC LIMIT 500`;
+        rows = await sql`SELECT id, fluxo_id, fluxo_id AS flow_id, sessao_id, sessao_id AS sessao, tipo, dados, criado_em FROM eventos WHERE fluxo_id = ${fluxo_id} ORDER BY criado_em DESC LIMIT 500`;
       } else {
-        rows = await sql`SELECT e.id, e.fluxo_id, e.sessao_id, e.tipo, e.dados, e.criado_em FROM eventos e JOIN fluxos f ON e.fluxo_id = f.id WHERE f.owner_id = ${user.id} ORDER BY e.criado_em DESC LIMIT 500`;
+        rows = await sql`SELECT e.id, e.fluxo_id, e.fluxo_id AS flow_id, e.sessao_id, e.sessao_id AS sessao, e.tipo, e.dados, e.criado_em FROM eventos e JOIN fluxos f ON e.fluxo_id = f.id WHERE f.owner_id = ${user.id} ORDER BY e.criado_em DESC LIMIT 500`;
       }
       return res.status(200).json(rows);
     }

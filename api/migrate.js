@@ -27,6 +27,33 @@ module.exports = async function handler(req, res) {
     await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS publicado BOOLEAN DEFAULT false`;
     await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ DEFAULT now()`;
     await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ DEFAULT now()`;
+    await sql`CREATE TABLE IF NOT EXISTS mensagens (
+      id TEXT PRIMARY KEY,
+      sessao_id TEXT NOT NULL,
+      fluxo_id TEXT,
+      remetente TEXT NOT NULL,
+      texto TEXT DEFAULT '',
+      criado_em TIMESTAMPTZ DEFAULT now()
+    )`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_mensagens_sessao ON mensagens(sessao_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_mensagens_criado ON mensagens(criado_em)`;
+    await sql`DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'mensagens_pkey' AND conrelid = 'mensagens'::regclass AND contype = 'p') THEN
+        ALTER TABLE mensagens DROP CONSTRAINT mensagens_pkey;
+        ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS id TEXT;
+        UPDATE mensagens SET id = 'm_' || extract(epoch from criado_em)::text WHERE id IS NULL;
+        ALTER TABLE mensagens ADD PRIMARY KEY (id);
+      END IF;
+    END $$`;
+    await sql`CREATE TABLE IF NOT EXISTS eventos (
+      id TEXT PRIMARY KEY,
+      fluxo_id TEXT,
+      sessao_id TEXT,
+      tipo TEXT NOT NULL,
+      dados JSONB DEFAULT '{}',
+      criado_em TIMESTAMPTZ DEFAULT now()
+    )`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_eventos_fluxo ON eventos(fluxo_id)`;
     const rows = await sql`SELECT id, email, nome, aprovado, dominio, config_jsonb FROM usuarios ORDER BY criado_em DESC`;
     return res.status(200).json({ ok: true, usuarios: rows });
   } catch (e) {

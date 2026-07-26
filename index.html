@@ -2579,9 +2579,9 @@ async function renderMetricas() {
 
   const porFluxo = {};
   dadosF.forEach(e => {
-    const fid = e.flow_id || "—";
+    const fid = e.fluxo_id || "—";
     const g = porFluxo[fid] || (porFluxo[fid] = { abriu: new Set(), chegou: new Set(), clicou: new Set(), zap: new Set(), atendente: new Set(), blocos: {}, min: 0, max: 0 });
-    const s = e.sessao || ("x" + Math.random());
+    const s = e.sessao_id || ("x" + Math.random());
     if (e.criado_em) { const t = new Date(e.criado_em).getTime(); if (!g.min || t < g.min) g.min = t; if (t > g.max) g.max = t; }
     if (e.tipo === "abriu") g.abriu.add(s);
     else if (e.tipo === "chegou_pagamento") g.chegou.add(s);
@@ -4269,6 +4269,7 @@ async function carregarSlug() {
   if (fluxoPorSlug && fluxoPorSlug.blocos && fluxoPorSlug.blocos.length) {
     CONFIG = fluxoPorSlug.config; BLOCOS = fluxoPorSlug.blocos;
     PROJETO.atual = fluxoPorSlug.id; FLOW_ID = fluxoPorSlug.id;
+    OWNER_ID = USUARIO ? USUARIO.id : (fluxoPorSlug.owner_id || null);
     aplicarMetadata(fluxoPorSlug.config || {});
     tocarFluxo();
     return;
