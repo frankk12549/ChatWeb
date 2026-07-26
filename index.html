@@ -2809,16 +2809,10 @@ async function renderConfiguracoes() {
   var inpNomeExib = h("input", { class: "ed-input", type: "text", value: savedNome, placeholder: "Seu nome" });
   perfilGrid.appendChild(h("div", null, lblNomeExib, inpNomeExib));
 
+  var tipoConta = EH_ADMIN() ? "Admin" : "Atendente";
   var lblTipo = h("label", { style: "font-size:12px;font-weight:500;color:rgba(255,255,255,.6);margin-bottom:4px;display:block" }, "Tipo de conta");
-  var selTipo = h("select", { class: "ed-input", style: "height:42px" });
-  var tiposConta = EH_ADMIN() ? ["Admin", "Gerente", "Atendente", "Visualizador"] : ["Gerente", "Atendente", "Visualizador"];
-  tiposConta.forEach(function(t) {
-    var opt = document.createElement("option");
-    opt.value = t; opt.textContent = t;
-    if (t === savedTipo) opt.selected = true;
-    selTipo.appendChild(opt);
-  });
-  perfilGrid.appendChild(h("div", null, lblTipo, selTipo));
+  var tipoBadge = h("div", { style: "padding:10px 13px;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.2);border-radius:10px;font-size:14px;color:#FFD700;font-weight:600" }, tipoConta === "Admin" ? "👑 Admin" : "💬 Atendente");
+  perfilGrid.appendChild(h("div", null, lblTipo, tipoBadge));
 
   var lblEmpresa = h("label", { style: "font-size:12px;font-weight:500;color:rgba(255,255,255,.6);margin-bottom:4px;display:block" }, "Nome da empresa / marca");
   var inpEmpresa = h("input", { class: "ed-input", type: "text", value: CONFIG.empresa || "", placeholder: "Minha Empresa" });
@@ -2836,7 +2830,6 @@ async function renderConfiguracoes() {
   perfil.appendChild(perfilGrid);
   perfil.appendChild(h("button", { class: "btn", style: "margin-top:16px", onclick: function() {
     localStorage.setItem("chatweb_user_nome", inpNomeExib.value.trim() || savedNome);
-    localStorage.setItem("chatweb_user_tipo", selTipo.value);
     CONFIG.empresa = inpEmpresa.value.trim() || CONFIG.empresa;
     CONFIG.whatsapp = inpWhats.value.trim();
     CONFIG.avatarLetra = (inpNomeExib.value.trim() || savedNome).charAt(0).toUpperCase();
