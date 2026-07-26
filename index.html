@@ -96,12 +96,25 @@
   .bubble img.media { width: 100%; border-radius: 6px; margin-bottom: 5px; display: block; }
   .bubble .legenda { padding: 3px 4px 0; white-space: pre-wrap; }
 
-  .bubble.audio { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
-  .bubble.audio.comtexto { flex-direction: column; align-items: flex-start; }
-  .bubble.audio .linha { display: flex; align-items: center; gap: 8px; }
-  .audio-avatar { width: 28px; height: 28px; border-radius: 50%; background: #075E54; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; overflow: hidden; }
+  .bubble.audio { display: flex; align-items: stretch; gap: 0; padding: 0; overflow: hidden; border-radius: 8px; max-width: 80%; }
+  .bubble.audio.comtexto { flex-direction: column; }
+  .audio-avatar { width: 36px; min-height: 36px; background: #075E54; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; overflow: hidden; }
   .audio-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .bubble.audio audio { height: 34px; width: 210px; max-width: 58vw; }
+  .audio-body { flex: 1; display: flex; flex-direction: column; padding: 8px 10px 6px; min-width: 0; }
+  .audio-row { display: flex; align-items: center; gap: 8px; }
+  .audio-play { width: 32px; height: 32px; border-radius: 50%; background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; }
+  .audio-play svg { fill: #075E54; width: 18px; height: 18px; }
+  .audio-track { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .audio-bar { position: relative; height: 4px; background: #c5ccd0; border-radius: 2px; cursor: pointer; overflow: visible; }
+  .audio-bar-fill { height: 100%; background: #075E54; border-radius: 2px; width: 0%; transition: width .1s linear; pointer-events: none; }
+  .audio-bar-dot { position: absolute; top: 50%; left: 0%; width: 12px; height: 12px; border-radius: 50%; background: #075E54; transform: translate(-50%, -50%); display: none; pointer-events: none; }
+  .audio-bar:hover .audio-bar-dot, .audio-playing .audio-bar-dot { display: block; }
+  .audio-times { display: flex; justify-content: space-between; align-items: center; }
+  .audio-time { font-size: 11px; color: #667781; }
+  .audio-speed { font-size: 10px; font-weight: 700; color: #075E54; background: none; border: 1.5px solid #075E54; border-radius: 4px; padding: 1px 5px; cursor: pointer; line-height: 1.2; flex-shrink: 0; }
+  .audio-footer { display: flex; justify-content: flex-end; padding: 0 10px 4px; }
+  .bubble.audio .legenda { padding: 4px 10px 6px; white-space: pre-wrap; font-size: 14px; line-height: 1.4; }
+  .bubble.audio .time { font-size: 10.5px; color: #667781; margin-left: auto; padding-right: 2px; }
   .bubble.audio .time { align-self: flex-end; }
 
   .bubble.rec { display: inline-flex; align-items: center; gap: 6px; }
