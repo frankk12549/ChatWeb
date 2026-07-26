@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>ChatWeb</title>
-<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAMSSURBVHhe7Zk9aBRBFMfP+BU9P/KhMXeiKCYKipLmbK4RCxVs1CKV12gjxEbSxOaaQFBQG9Oki4UIFtqICNpoIQiCWKWys9LOym7kv8eG5c3u7c3Me7sr94pfcZnd7Jvfzrx5M1t7t1I3w0yN/mHYUAHJH2ajNjSoABWgAlSAClABKkAFlCLg1+cR8+XlDoufH7da10pRqICNt9vN2nLd3J4fN2dPHzKnZqf70rk+YZ5290RS6P/iQlzAn68j5sWT3ebKhQNWB1242D4YycOooc8IQVTAq9VdpjWX/6ZdwMiBCPosX0QE4C1hmNPgOZm/Oml+vN9mPdsVdgFIYBiuNGAJMLqQV2gMLrAKKLLzMaES2AT8/b7FXLscluh8abemvJMjm4BHS3utwIpkoTNuxTQILAIw9GlAZfBhfdSKLQ8WAS5vv3NjIuLcGXt59G2L8RkFwQIw9zEHaTAUBJ6s6LCEteZ69/m2UVAjuOaCYAEIiAaSxsLNMevelcXeyPFtS+PT853W9f0IFoAH0iDSWLqz37r38f1eR3zb0kDZTa/vR7AAPJAGkUb7/JT5nRie0bJ5aTKoLQ1snmiM/QgWgMxLg8gCnUGAgHbCt43y7KFb/MECUIXRIMrEdSkMFoDt7iB7+6Jw3SAFCwBIVDSQMsAOkcaWB4uAb6+rMQ1cVwDAIgBI7//zwIkTVggaVx5sAlCBDVIRSoAc5LslZhMAUBSVkRBx9EZjGRRWAaBoCSGdB+wCACRwH4ZSIDm080BEAEB9ILU8IuG67vqyEBMQs/6gHmXo48caqcyeaFgdzAIdd6308hAXEJ8TnpyZjjp89EjDHG42TLPZE0A7SYm/Dkl9LhMVkLVPwPxd7dbNm7XRzU1OEsxtyc9hSUQFdO/uszqPWsF3zZZATACqMrocYjpwJS8uxATQg5J7t8a8SlVpxAQkP5K4ntIUiYiAOPlhCiDR0fYqISIAya9qyS4LdgGY5ziYqFqyy4JdAAqWKia7LNgF/G+oABWgAlSAClABKkAFqAAVoAJUwOaPYWToBfwD/BuxMVFeIEgAAAAASUVORK5CYII=">
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAMSSURBVHhe7Zk9aBRBFMfP+BU9P/KhMXeiKCYKipLmbK4RCxVs1CKV12gjxEbSxOaaQFBQG9Oki4UIFtqICNpoIQiCWKWys9LOym7kv8eG5c3u7c3Me7sr94pfcZnd7Jvfzrx5M1t7t1I3w0yN/mHYUAHJH2ajNjSoABWgAlSAClABKkAFlCLg1+cR8+XlDoufH7da10pRqICNt9vN2nLd3J4fN2dPHzKnZqf70rk+YZ5290RS6P/iQlzAn68j5sWT3ebKhQNWB1242D4YycOooc8IQVTAq9VdpjWX/6ZdwMiBCPosX0QE4C1hmNPgOZm/Oml+vN9mPdsVdgFIYBiuNGAJMLqQV2gMLrAKKLLzMaES2AT8/b7FXLscluh8abemvJMjm4BHS3utwIpkoTNuxTQILAIw9GlAZfBhfdSKLQ8WAS5vv3NjIuLcGXt59G2L8RkFwQIw9zEHaTAUBJ6s6LCEteZ69/m2UVAjuOaCYAEIiAaSxsLNMevelcXeyPFtS+PT853W9f0IFoAH0iDSWLqz37r38f1eR3zb0kDZTa/vR7AAPJAGkUb7/JT5nRie0bJ5aTKoLQ1snmiM/QgWgMxLg8gCnUGAgHbCt43y7KFb/MECUIXRIMrEdSkMFoDt7iB7+6Jw3SAFCwBIVDSQMsAOkcaWB4uAb6+rMQ1cVwDAIgBI7//zwIkTVggaVx5sAlCBDVIRSoAc5LslZhMAUBSVkRBx9EZjGRRWAaBoCSGdB+wCACRwH4ZSIDm080BEAEB9ILU8IuG67vqyEBMQs/6gHmXo48caqcyeaFgdzAIdd6308hAXEJ8TnpyZjjp89EjDHG42TLPZE0A7SYm/Dkl9LhMVkLVPwPxd7dbNm7XRzU1OEsxtyc9hSUQFdO/uszqPWsF3zZZATACqMrocYjpwJS8uxATQg5J7t8a8SlVpxAQkP5K4ntIUiYiAOPlhCiDR0fYqISIAya9qyS4LdgGY5ziYqFqyy4JdAAqWKia7LNgF/G+oABWgAlSAClABKkAFqAAVoAJUwOaPYWToBfwD/BuxMVFeIEgAAAAASUVORK5CYII=">
+<link rel="icon" type="image/svg+xml" href="https://static.whatsapp.net/rsrc.php/ym/r/36B424nhiL4.svg">
+<link rel="apple-touch-icon" href="https://static.whatsapp.net/rsrc.php/v3/yG/r/IuLhOoLJjCw.png">
 <!-- App em tela cheia (igual WhatsApp) quando adicionado à Tela de Início -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -99,7 +99,8 @@
   .bubble.audio { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
   .bubble.audio.comtexto { flex-direction: column; align-items: flex-start; }
   .bubble.audio .linha { display: flex; align-items: center; gap: 8px; }
-  .bubble.audio .mic { font-size: 18px; flex-shrink: 0; }
+  .audio-avatar { width: 28px; height: 28px; border-radius: 50%; background: #075E54; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; overflow: hidden; }
+  .audio-avatar img { width: 100%; height: 100%; object-fit: cover; }
   .bubble.audio audio { height: 34px; width: 210px; max-width: 58vw; }
   .bubble.audio .time { align-self: flex-end; }
 
@@ -1210,7 +1211,8 @@ function aplicarMetadata(cfg) {
   setMeta("og:type", "website");
   if (meta.favicon) {
     var link = document.querySelector("link[rel='icon']") || document.createElement("link");
-    link.rel = "icon"; link.type = "image/png"; link.href = meta.favicon;
+    var isSvg = meta.favicon.slice(-4) === ".svg" || meta.favicon.indexOf("image/svg") !== -1;
+    link.rel = "icon"; link.type = isSvg ? "image/svg+xml" : "image/png"; link.href = meta.favicon;
     if (!link.parentNode) document.head.appendChild(link);
   }
   if (meta.ogImage) { setMeta("og:image", meta.ogImage); setMeta("twitter:image", meta.ogImage); }
@@ -1242,7 +1244,9 @@ function balaoCliente(texto) {
 function balaoAudioBot(m) {
   const row = document.createElement("div"); row.className = "row in";
   const bub = document.createElement("div"); bub.className = "bubble audio";
-  const mic = document.createElement("span"); mic.className = "mic"; mic.textContent = "🎤";
+  const mic = document.createElement("div"); mic.className = "audio-avatar";
+  if (CONFIG.avatarFoto) { const im = document.createElement("img"); im.src = CONFIG.avatarFoto; im.alt = ""; mic.appendChild(im); }
+  else { mic.textContent = (CONFIG.avatarLetra || (CONFIG.empresa || "S").charAt(0) || "S").toUpperCase(); }
   const au = document.createElement("audio"); au.controls = true; au.preload = "auto"; au.src = m.audio || "";
   const time = document.createElement("span"); time.className = "time"; time.textContent = agora();
   if (m.legenda && String(m.legenda).trim() !== "") {
@@ -3969,12 +3973,12 @@ function restaurarArquivos(blocos, arquivosLista) {
   arquivosLista.forEach(function(a) { mapa[a.chave] = a.dados; });
   return (blocos || []).map(function(b) {
     var c = Object.assign({}, b);
-    if (c.audio && c.audio.slice && c.audio.slice(0, 11) === "__arquivo:") {
-      var chave = c.audio.slice(11, -2);
+    if (c.audio && c.audio.slice && c.audio.slice(0, 10) === "__arquivo:") {
+      var chave = c.audio.slice(10, -2);
       c.audio = mapa[chave] || "";
     }
-    if (c.img && c.img.slice && c.img.slice(0, 11) === "__arquivo:") {
-      var chave = c.img.slice(11, -2);
+    if (c.img && c.img.slice && c.img.slice(0, 10) === "__arquivo:") {
+      var chave = c.img.slice(10, -2);
       c.img = mapa[chave] || "";
     }
     return c;
