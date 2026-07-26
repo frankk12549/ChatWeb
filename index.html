@@ -2830,9 +2830,15 @@ async function renderConversas() {
   let lista = sessoes.filter(noPeriodo).filter(s => funilVisivel(info[s].fid));
   if (CONV_FLUXO !== "todos") lista = lista.filter(s => info[s].fid === CONV_FLUXO);
   lista.sort((a, b) => info[b].lastT - info[a].lastT);
-  // Finalizadas vs Ativas
-  var finalizadasSet = (function(){try{return new Set(JSON.parse(localStorage.getItem("chatweb_conv_finalizadas")||"[]"));}catch(e){return new Set();}})();
-  var lidasMap = (function(){try{return JSON.parse(localStorage.getItem("chatweb_conv_lidas")||"{}");}catch(e){return{};}})();
+  // Finalizadas vs Ativas (salvo no Neon via config_jsonb do usuario)
+  var cfgUser = (USER_CONFIG || {});
+  var finalizadasSet = (function(){try{return new Set(cfgUser.conv_finalizadas||[]);}catch(e){return new Set();}})();
+  var lidasMap = (function(){try{return cfgUser.conv_lidas||{};}catch(e){return{};}})();
+  function salvarConvConfig(){
+    cfgUser.conv_lidas = lidasMap;
+    cfgUser.conv_finalizadas = [...finalizadasSet];
+    USER_CONFIG = cfgUser;
+    if(API_TOKEN && USUARIO) apiSalvarUserConfig(cfgUser);
   var ativas = lista.filter(s => !finalizadasSet.has(s));
   var finalizadas = lista.filter(s => finalizadasSet.has(s));
   function contarNaoLidas(s){
@@ -2868,16 +2874,16 @@ async function renderConversas() {
     var msgs=porSessao[s];var last=msgs[msgs.length-1];
     var nome=nomeDoFluxo(info[s].fid);var prefixo=last.remetente==="empresa"?"Você: ":"";
     var nNaoLidas=contarNaoLidas(s);
-    var item=h("div",{class:"fluxo-item",style:"cursor:pointer;display:flex;align-items:center;justify-content:space-between",onclick:()=>{if(s){lidasMap[s]=new Date().toISOString();try{localStorage.setItem("chatweb_conv_lidas",JSON.stringify(lidasMap));}catch(e){}conversaSessao=s;renderConversas();edBody.scrollTop=0;}}},
+    var item=h("div",{class:"fluxo-item",style:"cursor:pointer;display:flex;align-items:center;justify-content:space-between",onclick:()=>{if(s){lidasMap[s]=new Date().toISOString();salvarConvConfig();conversaSessao=s;renderConversas();edBody.scrollTop=0;}}},
       h("div",null,
         h("div",{class:"nome"},(finalizadasSet.has(s)?"✅ ":"💬 ")+nome+" · Cliente "+s.slice(0,5)+(nNaoLidas?"  🔴"+nNaoLidas:"")),
         h("div",{class:"meta"},prefixo+previewMsg(last.texto)+" · "+fmtMsgHora(last.criado_em))
       ));
     var btnBox=h("div",{style:"flex-shrink:0;margin-left:10px;display:flex;gap:4px"});
     if(!finalizadasSet.has(s)){
-      btnBox.appendChild(h("button",{class:"btn sm gray",style:"font-size:11px;padding:3px 7px",onclick:e=>{e.stopPropagation();finalizadasSet.add(s);try{localStorage.setItem("chatweb_conv_finalizadas",JSON.stringify([...finalizadasSet]));}catch(e){}renderConversas();}},"✅ Finalizar"));
+      btnBox.appendChild(h("button",{class:"btn sm gray",style:"font-size:11px;padding:3px 7px",onclick:e=>{e.stopPropagation();finalizadasSet.add(s);salvarConvConfig();renderConversas();}},"✅ Finalizar"));
     }else{
-      btnBox.appendChild(h("button",{class:"btn sm teal",style:"font-size:11px;padding:3px 7px",onclick:e=>{e.stopPropagation();finalizadasSet.delete(s);try{localStorage.setItem("chatweb_conv_finalizadas",JSON.stringify([...finalizadasSet]));}catch(e){}renderConversas();}},"🔄 Reabrir"));
+      btnBox.appendChild(h("button",{class:"btn sm teal",style:"font-size:11px;padding:3px 7px",onclick:e=>{e.stopPropagation();finalizadasSet.delete(s);salvarConvConfig();renderConversas();}},"🔄 Reabrir"));
     }
     item.appendChild(btnBox);card.appendChild(item);
   });
