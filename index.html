@@ -1026,6 +1026,12 @@ async function apiAdminAprovar(usuarioId) {
 async function apiAdminRejeitar(usuarioId) {
   return await apiCall("POST", "admin", { usuario_id: usuarioId, acao: "rejeitar" });
 }
+async function apiPerfilBuscar() {
+  return await apiCall("GET", "perfil");
+}
+async function apiPerfilSalvar(dados) {
+  return await apiCall("PUT", "perfil", dados);
+}
 async function apiBuscarFluxoPorSlug(slug) {
   return await apiCall("GET", "fluxos?slug=" + encodeURIComponent(slug));
 }
@@ -2719,7 +2725,7 @@ async function renderContatos() {
 }
 
 /* ----- CONFIGURACOES DA CONTA ----- */
-function renderConfiguracoes() {
+async function renderConfiguracoes() {
   edBody.innerHTML = "";
   var content = h("main", { class: "dash-content" });
   content.appendChild(h("div", { class: "dash-hero" },
@@ -2728,9 +2734,13 @@ function renderConfiguracoes() {
       h("h1", { class: "dh-title" }, "Configuracoes"),
       h("p", { class: "dh-sub" }, "Gerencie os dados da sua conta e preferencias do painel."))));
 
+  var perfilDB = null;
+  try { perfilDB = await apiPerfilBuscar(); } catch (e) { }
+
   var savedEmail = localStorage.getItem("chatweb_user_email") || ((USUARIO && USUARIO.email) || "voce@empresa.com");
-  var savedNome = localStorage.getItem("chatweb_user_nome") || (savedEmail.split("@")[0] || "Admin").replace(/[._-]+/g, " ").replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  var savedNome = perfilDB?.nome || localStorage.getItem("chatweb_user_nome") || (savedEmail.split("@")[0] || "Admin").replace(/[._-]+/g, " ").replace(/\b\w/g, function(c) { return c.toUpperCase(); });
   var savedTipo = localStorage.getItem("chatweb_user_tipo") || "Admin";
+  var savedDominio = perfilDB?.dominio || PROJETO.dominio || "";
   var savedAvatar = CONFIG.avatarLetra || savedNome.charAt(0) || "A";
 
   // Card: Perfil
@@ -2765,7 +2775,7 @@ function renderConfiguracoes() {
   perfilGrid.appendChild(h("div", null, lblLink, inpLink));
 
   var lblDominio = h("label", { style: "font-size:12px;font-weight:500;color:rgba(255,255,255,.6);margin-bottom:4px;display:block" }, "Seu domínio personalizado");
-  var inpDominio = h("input", { class: "ed-input", type: "text", value: PROJETO.dominio || "", placeholder: "ex: atendimento.seusite.com.br" });
+  var inpDominio = h("input", { class: "ed-input", type: "text", value: savedDominio, placeholder: "ex: atendimento.seusite.com.br" });
   var domHint = h("div", { style: "font-size:11.5px;color:#8a97a0;margin-top:4px;line-height:1.4" }, "Aponte o DNS do seu domínio para CNAME " + location.hostname + " e ele aparecerá automaticamente nos links dos seus funis.");
   perfilGrid.appendChild(h("div", null, lblDominio, inpDominio, domHint));
 
@@ -2779,8 +2789,13 @@ function renderConfiguracoes() {
     CONFIG.avatarLetra = (inpNomeExib.value.trim() || savedNome).charAt(0).toUpperCase();
     PROJETO.dominio = inpDominio.value.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "").replace(/\s/g, "");
     var f = fluxoAtual(); if (f) { f.config = clone(CONFIG); salvarLocal(); }
-    toast("Perfil salvo!");
-    renderConfiguracoes();
+    apiPerfilSalvar({ nome: inpNomeExib.value.trim(), dominio: PROJETO.dominio }).then(function() {
+      toast("Perfil salvo!");
+      renderConfiguracoes();
+    }).catch(function() {
+      toast("Perfil salvo localmente!");
+      renderConfiguracoes();
+    });
   } }, "Salvar alteracoes"));
   content.appendChild(perfil);
 
@@ -3468,6 +3483,11 @@ async function onLogado() {
     if (!pago) { document.getElementById("loginBg").classList.remove("aberto"); mostrarPaywall(); return; }
   }
   await carregarProjetoNuvem();
+  try {
+    const perfil = await apiPerfilBuscar();
+    if (perfil && perfil.dominio) PROJETO.dominio = perfil.dominio;
+    if (perfil && perfil.nome) { localStorage.setItem("chatweb_user_nome", perfil.nome); }
+  } catch (e) { }
   aplicarAtivo();
   ativarAdmin();
   reiniciarChat();
