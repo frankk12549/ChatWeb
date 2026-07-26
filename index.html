@@ -4033,13 +4033,13 @@ async function salvarProjetoNuvem() {
 }
 async function initAuth() {
   if (API_TOKEN && localStorage.getItem("chatweb_user_email")) {
-    USUARIO = { email: localStorage.getItem("chatweb_user_email"), nome: localStorage.getItem("chatweb_user_nome") || "" };
+    USUARIO = { id: localStorage.getItem("chatweb_user_id"), email: localStorage.getItem("chatweb_user_email"), nome: localStorage.getItem("chatweb_user_nome") || "" };
     onLogado();
     return;
   }
   mostrarLogin();
 }
-async function sairConta() { API_TOKEN = null; localStorage.removeItem("chatweb_api_token"); location.reload(); }
+async function sairConta() { API_TOKEN = null; USUARIO = null; localStorage.removeItem("chatweb_api_token"); localStorage.removeItem("chatweb_user_id"); localStorage.removeItem("chatweb_user_email"); localStorage.removeItem("chatweb_user_nome"); location.reload(); }
 
 if (document.getElementById("loginEye")) {
   document.getElementById("loginEye").onclick = () => {
@@ -4066,6 +4066,7 @@ if (document.getElementById("btnEntrar")) {
         loginMsg(r.erro || "Sua conta esta aguardando aprovacao do administrador.", true);
       } else if (r && r.usuario) {
         USUARIO = r.usuario;
+        localStorage.setItem("chatweb_user_id", r.usuario.id);
         localStorage.setItem("chatweb_user_email", r.usuario.email);
         localStorage.setItem("chatweb_user_nome", r.usuario.nome || "");
         onLogado();
@@ -4090,6 +4091,7 @@ if (document.getElementById("btnEntrar")) {
         loginMsg("Conta criada! Aguarde a aprovacao do administrador para acessar.", true);
       } else if (r && r.usuario) {
         USUARIO = r.usuario;
+        localStorage.setItem("chatweb_user_id", r.usuario.id);
         localStorage.setItem("chatweb_user_email", r.usuario.email);
         localStorage.setItem("chatweb_user_nome", r.usuario.nome || "");
         loginMsg("Conta criada! Entrando…");
