@@ -918,7 +918,8 @@ const CONFIG_PADRAO = {
   linkPagamento: "",
   linksPagamento: [],
   velocidadeDigitando: 1100,
-  rastreioURL: ""
+  rastreioURL: "",
+  mostrarEmConversas: true
 };
 
 const BLOCOS_PADRAO = [
@@ -2699,6 +2700,13 @@ async function renderConversas() {
     info[s] = { fid: fid, lastT: lastT };
   });
   const nomeDoFluxo = fid => { const fx = PROJETO && PROJETO.fluxos.find(f => f.id === fid); return fx ? fx.nome : (fid === "—" ? "Sem identificação" : "Funil " + fid.slice(0, 6)); };
+  const funilVisivel = fid => {
+    if (fid === "—") return true;
+    const fx = PROJETO && PROJETO.fluxos.find(f => f.id === fid);
+    if (!fx) return true;
+    const cfgFx = fx.config || {};
+    return cfgFx.mostrarEmConversas !== false;
+  };
 
   // ---- Filtro por data ----
   let cutStart = 0, cutEnd = Infinity;
@@ -2717,7 +2725,7 @@ async function renderConversas() {
   const fluxosPresentes = [];
   sessoes.forEach(s => { const fid = info[s].fid; if (!fluxosPresentes.includes(fid)) fluxosPresentes.push(fid); });
   const cont = {};
-  sessoes.forEach(s => { if (noPeriodo(s)) cont[info[s].fid] = (cont[info[s].fid] || 0) + 1; });
+  sessoes.forEach(s => { if (noPeriodo(s) && funilVisivel(info[s].fid)) cont[info[s].fid] = (cont[info[s].fid] || 0) + 1; });
   const totalPeriodo = Object.keys(cont).reduce((a, k) => a + cont[k], 0);
 
   const tabAba = (key, label, count) => {
@@ -2727,11 +2735,11 @@ async function renderConversas() {
   };
   const tabs = h("div", { class: "conv-tabs" });
   tabs.appendChild(tabAba("todos", "🗂️ Todos", totalPeriodo));
-  fluxosPresentes.forEach(fid => tabs.appendChild(tabAba(fid, "💬 " + nomeDoFluxo(fid), cont[fid] || 0)));
+  fluxosPresentes.forEach(fid => { if (funilVisivel(fid)) tabs.appendChild(tabAba(fid, "💬 " + nomeDoFluxo(fid), cont[fid] || 0)); });
   card.appendChild(tabs);
 
   // ---- Lista filtrada ----
-  let lista = sessoes.filter(noPeriodo);
+  let lista = sessoes.filter(noPeriodo).filter(s => funilVisivel(info[s].fid));
   if (CONV_FLUXO !== "todos") lista = lista.filter(s => info[s].fid === CONV_FLUXO);
   lista.sort((a, b) => info[b].lastT - info[a].lastT);
 
@@ -3418,6 +3426,18 @@ function renderEditor() {
     h("div", { style: "display:flex;gap:12px;align-items:flex-start;margin-top:4px" }, avImg, avCtrl)));
   if (!ehAtend) cCard.appendChild(campo("Letra do avatar", cfg.avatarLetra, v => cfg.avatarLetra = v, "(usada quando não há foto)"));
   cCard.appendChild(campo("WhatsApp (DDI+DDD, só números)", cfg.whatsapp, v => cfg.whatsapp = v, ehAtend ? "(usado nos botões de WhatsApp)" : ""));
+
+  if (!ehAtend) {
+    var convSection = h("div", { class: "fld", style: "margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)" });
+    var convChk = h("input", { type: "checkbox", checked: cfg.mostrarEmConversas !== false ? "checked" : undefined, style: "accent-color:#00A884;width:16px;height:16px;margin-right:6px" });
+    convChk.checked = cfg.mostrarEmConversas !== false;
+    convChk.onchange = function() { cfg.mostrarEmConversas = convChk.checked; };
+    var convLabel = h("label", { class: "chk", style: "cursor:pointer" }, convChk, " Mostrar mensagens nesta conversa");
+    convSection.appendChild(h("label", { style: "font-size:12.5px;font-weight:600;margin-bottom:4px;display:block;color:#445" }, "📊 Conversas"));
+    convSection.appendChild(h("div", { class: "hint", style: "margin-bottom:6px" }, "Se desligado, as mensagens deste funil não aparecem na aba 💬 Conversas. Útil pra funis automáticos que não precisam de resposta manual."));
+    convSection.appendChild(convLabel);
+    cCard.appendChild(convSection);
+  }
 
   if (!ehAtend) {
     var metaSection = h("div", { class: "fld", style: "margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)" });
