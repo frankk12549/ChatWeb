@@ -1937,15 +1937,16 @@ function abrirLinkCliente(f) {
     f.publicado = true; salvarProjeto();
   }
   const slug = f.slug || "";
-  const dominio = location.origin;
+  const dominio = PROJETO.dominio ? "https://" + PROJETO.dominio : location.origin;
   const url = slug ? dominio + "/" + slug : dominio + "?f=" + f.id;
   const avisoSlug = !slug ? "\n\n💡 Adicione um slug nas configurações do funil para ter um link limpo tipo " + dominio + "/seu-slug" : "";
+  const avisoDominio = !PROJETO.dominio ? "\n\n⚠️ Configure seu domínio personalizado em Configurações → Perfil para usar links com seu endereço." : "";
 
   const bg = h("div", { class: "modal-bg aberto" });
   const box = h("div", { class: "modal", style: "max-width:480px;text-align:left" });
   const fechar = () => bg.remove();
   box.appendChild(h("h3", null, "🔗 Link do funil"));
-  box.appendChild(h("p", { style: "font-size:14px;color:#556;line-height:1.5" }, "Compartilhe este link com seus clientes. " + (slug ? "O slug personalizado já está configurado!" : "Configure um slug nas configurações do funil para ter um link mais limpo.")));
+  box.appendChild(h("p", { style: "font-size:14px;color:#556;line-height:1.5" }, "Compartilhe este link com seus clientes." + (slug ? " O slug personalizado já está configurado!" : " Configure um slug nas configurações do funil para ter um link mais limpo.") + avisoDominio));
 
   const ta = document.createElement("textarea"); ta.readOnly = true; ta.value = url;
   ta.style.cssText = "width:100%;min-height:44px;border:1px solid #e0e3e9;border-radius:8px;padding:8px;font-family:monospace;font-size:13px;background:#f6f7f9;color:#111b21;margin:8px 0";
@@ -1980,7 +1981,7 @@ function funisTable(stats) {
     const tr2 = document.createElement("tr");
     tr2.setAttribute("data-nome", (f.nome || "").toLowerCase());
     tr2.appendChild(h("td", null, h("div", { class: "fn" }, h("span", { class: "fic" }, ic("msg", 16)), h("div", null, h("b", null, f.nome || "Sem nome"), h("small", null, nBlocos + (nBlocos === 1 ? " mensagem" : " mensagens"))))));
-    const slugText = f.slug ? h("span", { style: "font-family:monospace;font-size:12px;color:#B8860B;cursor:pointer", title: "Clique pra copiar", onclick: () => { if (navigator.clipboard) navigator.clipboard.writeText((PROJETO.dominio || "dominio") + "/" + f.slug); toast("📋 Slug copiado!"); } }, "/" + f.slug) : h("span", { style: "font-size:12px;color:rgba(255,255,255,.3)" }, "—");
+    const slugText = f.slug ? h("span", { style: "font-family:monospace;font-size:12px;color:#B8860B;cursor:pointer", title: "Clique pra copiar", onclick: () => { const base = PROJETO.dominio ? "https://" + PROJETO.dominio : location.origin; if (navigator.clipboard) navigator.clipboard.writeText(base + "/" + f.slug); toast("📋 Link copiado!"); } }, "/" + f.slug) : h("span", { style: "font-size:12px;color:rgba(255,255,255,.3)" }, "—");
     tr2.appendChild(h("td", null, slugText));
     const publicado = !!f.publicado;
     const st = h("span", { class: "st " + (publicado ? "pub" : "rasc") });
@@ -2719,6 +2720,11 @@ function renderConfiguracoes() {
   var inpLink = h("input", { class: "ed-input", type: "url", value: CONFIG.linkPagamento || "", placeholder: "https://payseudominio.com/link" });
   perfilGrid.appendChild(h("div", null, lblLink, inpLink));
 
+  var lblDominio = h("label", { style: "font-size:12px;font-weight:500;color:rgba(255,255,255,.6);margin-bottom:4px;display:block" }, "Seu domínio personalizado");
+  var inpDominio = h("input", { class: "ed-input", type: "text", value: PROJETO.dominio || "", placeholder: "ex: atendimento.seusite.com.br" });
+  var domHint = h("div", { style: "font-size:11.5px;color:#8a97a0;margin-top:4px;line-height:1.4" }, "Aponte o DNS do seu domínio para CNAME " + location.hostname + " e ele aparecerá automaticamente nos links dos seus funis.");
+  perfilGrid.appendChild(h("div", null, lblDominio, inpDominio, domHint));
+
   perfil.appendChild(perfilGrid);
   perfil.appendChild(h("button", { class: "btn", style: "margin-top:16px", onclick: function() {
     localStorage.setItem("chatweb_user_nome", inpNomeExib.value.trim() || savedNome);
@@ -2727,6 +2733,7 @@ function renderConfiguracoes() {
     CONFIG.whatsapp = inpWhats.value.trim();
     CONFIG.linkPagamento = inpLink.value.trim();
     CONFIG.avatarLetra = (inpNomeExib.value.trim() || savedNome).charAt(0).toUpperCase();
+    PROJETO.dominio = inpDominio.value.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "").replace(/\s/g, "");
     var f = fluxoAtual(); if (f) { f.config = clone(CONFIG); salvarLocal(); }
     toast("Perfil salvo!");
     renderConfiguracoes();
@@ -3063,7 +3070,7 @@ function renderEditor() {
       slugHint.style.color = duplicado ? "#c0392b" : "#B8860B";
     }});
     cCard.appendChild(h("div", { class: "fld" }, h("label", null, "Link do funil (slug)", slugHint), slugInp));
-    cCard.appendChild(h("div", { class: "fld" }, h("label", null, "Exemplo do link"), h("div", { style: "font-family:monospace;font-size:12.5px;color:#B8860B;word-break:break-all;padding:8px 10px;background:rgba(255,215,0,.08);border-radius:8px;border:1px solid rgba(255,215,0,.2)" }, (PROJETO.dominio || "seu-dominio.com.br") + "/" + (rascunho.slug || "slug-do-funil"))));
+    cCard.appendChild(h("div", { class: "fld" }, h("label", null, "Exemplo do link"), h("div", { style: "font-family:monospace;font-size:12.5px;color:#B8860B;word-break:break-all;padding:8px 10px;background:rgba(255,215,0,.08);border-radius:8px;border:1px solid rgba(255,215,0,.2)" }, (PROJETO.dominio || location.hostname) + "/" + (rascunho.slug || "slug-do-funil"))));
   }
   if (!ehAtend) cCard.appendChild(campo("Nome da empresa (topo do chat)", cfg.empresa, v => cfg.empresa = v));
 
