@@ -12,10 +12,11 @@ module.exports = async function handler(req, res) {
       const lim = Math.min(parseInt(limit) || 500, 1000);
 
       if (owner_id) {
-        const rows = await sql`SELECT id, sessao_id, sessao_id AS sessao, fluxo_id, fluxo_id AS flow_id, remetente, texto, criado_em
-          FROM mensagens
-          WHERE fluxo_id IN (SELECT id FROM fluxos WHERE owner_id = ${owner_id})
-          ORDER BY criado_em DESC LIMIT ${lim}`;
+        const rows = await sql`SELECT m.id, m.sessao_id, m.sessao_id AS sessao, m.fluxo_id, m.fluxo_id AS flow_id, m.remetente, m.texto, m.criado_em
+          FROM mensagens m
+          LEFT JOIN fluxos f ON m.fluxo_id::uuid = f.id
+          WHERE f.owner_id = ${owner_id}
+          ORDER BY m.criado_em DESC LIMIT ${lim}`;
         return res.status(200).json(rows);
       }
 
