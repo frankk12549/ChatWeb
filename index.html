@@ -1213,7 +1213,7 @@ function balaoAudioBot(m) {
   const row = document.createElement("div"); row.className = "row in";
   const bub = document.createElement("div"); bub.className = "bubble audio";
   const mic = document.createElement("span"); mic.className = "mic"; mic.textContent = "🎤";
-  const au = document.createElement("audio"); au.controls = true; au.preload = "metadata"; au.src = m.audio || "";
+  const au = document.createElement("audio"); au.controls = true; au.preload = "auto"; au.src = m.audio || "";
   const time = document.createElement("span"); time.className = "time"; time.textContent = agora();
   if (m.legenda && String(m.legenda).trim() !== "") {
     bub.classList.add("comtexto");
@@ -3514,7 +3514,7 @@ function renderBloco(b, i, cfg) {
       legInp, h("div", { class: "fmt-bar" }, botaoNegrito(() => legInp))));
   }
   else if (b.tipo === "audio") {
-    if (b.audio) { const au = h("audio", { controls: "controls", preload: "metadata", style: "width:100%;height:36px;margin-bottom:6px;display:block" }); au.src = b.audio; card.appendChild(au); }
+    if (b.audio) { const au = h("audio", { controls: "controls", preload: "auto", style: "width:100%;height:36px;margin-bottom:6px;display:block" }); au.src = b.audio; card.appendChild(au); }
     const btnRec = h("button", { class: "btn sm green" }, b.audio ? "🎤 Regravar" : "🎤 Gravar");
     const timerLbl = h("span", { class: "grav-timer" }, "");
     btnRec.onclick = () => { if (gravAtivo) pararGravacao(); else iniciarGravacao(b, btnRec, timerLbl); };
