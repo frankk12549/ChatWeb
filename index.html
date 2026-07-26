@@ -2763,6 +2763,15 @@ async function renderConversas() {
   let dados = [];
   try { if (API_TOKEN && USUARIO) { const r = await apiCall("GET", "mensagens?owner_id=" + USUARIO.id); dados = r || []; } }
   catch (e) { console.warn("Conversas:", e); }
+  // Busca nomes reais dos funis pela API
+  var nomesFluxos = {};
+  try {
+    if (API_TOKEN && USUARIO) {
+      const fluxosApi = await apiListarFluxos(USUARIO.id);
+      if (fluxosApi && Array.isArray(fluxosApi)) fluxosApi.forEach(f => { nomesFluxos[f.id] = f.nome; });
+    }
+  } catch (e) {}
+  if (PROJETO && PROJETO.fluxos) PROJETO.fluxos.forEach(f => { if (!nomesFluxos[f.id]) nomesFluxos[f.id] = f.nome; });
   carregando.remove();
   const porSessao = {};
   dados.forEach(m => { (porSessao[m.sessao] = porSessao[m.sessao] || []).push(m); });
@@ -2772,8 +2781,7 @@ async function renderConversas() {
       "Nenhuma mensagem ainda. Quando um cliente escrever no chat de um funil publicado, a conversa aparece aqui."));
     return;
   }
-
-  // Info por sessão: de qual funil veio e horário da última mensagem
+  // Info por sessão: de qual funil veio, horário da última mensagem
   const info = {};
   sessoes.forEach(s => {
     const msgs = porSessao[s];
@@ -2781,7 +2789,7 @@ async function renderConversas() {
     const lastT = new Date(msgs[msgs.length - 1].criado_em).getTime() || 0;
     info[s] = { fid: fid, lastT: lastT };
   });
-  const nomeDoFluxo = fid => { const fx = PROJETO && PROJETO.fluxos.find(f => f.id === fid); return fx ? fx.nome : (fid === "—" ? "Sem identificação" : "Funil " + fid.slice(0, 6)); };
+  const nomeDoFluxo = fid => nomesFluxos[fid] || (fid === "—" ? "Sem identificação" : "Funil " + fid.slice(0, 6));
   const funilVisivel = fid => {
     if (fid === "—") return true;
     const fx = PROJETO && PROJETO.fluxos.find(f => f.id === fid);
@@ -2816,27 +2824,62 @@ async function renderConversas() {
     return b;
   };
   const tabs = h("div", { class: "conv-tabs" });
-  tabs.appendChild(tabAba("todos", "🗂️ Todos", totalPeriodo));
-  fluxosPresentes.forEach(fid => { if (funilVisivel(fid)) tabs.appendChild(tabAba(fid, "💬 " + nomeDoFluxo(fid), cont[fid] || 0)); });
   card.appendChild(tabs);
 
   // ---- Lista filtrada ----
   let lista = sessoes.filter(noPeriodo).filter(s => funilVisivel(info[s].fid));
   if (CONV_FLUXO !== "todos") lista = lista.filter(s => info[s].fid === CONV_FLUXO);
   lista.sort((a, b) => info[b].lastT - info[a].lastT);
-
-  if (!lista.length) {
-    card.appendChild(h("div", { style: "color:#8a97a0;font-size:14px;padding:10px 2px" }, "Nenhuma conversa nesse filtro. Tente outra aba ou outro período."));
+  // Finalizadas vs Ativas
+  var finalizadasSet = (function(){try{return new Set(JSON.parse(localStorage.getItem("chatweb_conv_finalizadas")||"[]"));}catch(e){return new Set();}})();
+  var lidasMap = (function(){try{return JSON.parse(localStorage.getItem("chatweb_conv_lidas")||"{}");}catch(e){return{};}})();
+  var ativas = lista.filter(s => !finalizadasSet.has(s));
+  var finalizadas = lista.filter(s => finalizadasSet.has(s));
+  function contarNaoLidas(s){
+    var msgs=porSessao[s];var ultimaVista=new Date(lidasMap[s]||0).getTime();
+    return msgs.filter(m=>m.remetente==="cliente"&&new Date(m.criado_em).getTime()>ultimaVista).length;
+  }
+  // Recalcular contagens por funil (só ativas)
+  var contAtivo = {};
+  ativas.forEach(s => { if(noPeriodo(s)&&funilVisivel(info[s].fid)) contAtivo[info[s].fid]=(contAtivo[info[s].fid]||0)+1; });
+  var totalAtivo = Object.keys(contAtivo).reduce((a,k)=>a+contAtivo[k],0);
+  // Total de nao lidas
+  var totalNaoLidas = ativas.reduce((a,s)=>a+contarNaoLidas(s),0);
+  // Rebuild tabs com nomes e badge de nao lidas
+  tabs.innerHTML="";
+  tabs.appendChild(tabAba("todos","🗂️ Todos"+(totalNaoLidas?" ("+totalNaoLidas+")":""),totalAtivo));
+  fluxosPresentes.forEach(fid=>{if(funilVisivel(fid)){
+    var nd=ativas.filter(s=>info[s].fid===fid).reduce((a,s)=>a+contarNaoLidas(s),0);
+    tabs.appendChild(tabAba(fid,"💬 "+nomeDoFluxo(fid)+(nd?" ("+nd+")":""),contAtivo[fid]||0));
+  }});
+  // Finalizadas tab (colapsavel)
+  if(finalizadas.length){
+    var finTab=h("div",{class:"conv-tab fin-tab"+(CONV_FLUXO==="_fin"?" on":""),title:"Finalizadas",onclick:()=>{CONV_FLUXO="_fin";renderConversas();}},h("span",null,"✅ Finalizadas"));
+    finTab.appendChild(h("span",{class:"cnt"},String(finalizadas.length)));tabs.appendChild(finTab);
+  }
+  // Mostrar lista
+  var mostrar = CONV_FLUXO==="_fin"?finalizadas:ativas;
+  if(CONV_FLUXO!=="todos"&&CONV_FLUXO!=="_fin")mostrar=mostrar.filter(s=>info[s].fid===CONV_FLUXO);
+  if(!mostrar.length){
+    card.appendChild(h("div",{style:"color:#8a97a0;font-size:14px;padding:10px 2px"},"Nenhuma conversa nesse filtro. Tente outra aba ou outro período."));
     return;
   }
-  lista.forEach(s => {
-    const msgs = porSessao[s];
-    const last = msgs[msgs.length - 1];
-    const nome = nomeDoFluxo(info[s].fid);
-    const prefixo = last.remetente === "empresa" ? "Você: " : "";
-    card.appendChild(h("div", { class: "fluxo-item", style: "cursor:pointer", onclick: () => { conversaSessao = s; renderConversas(); edBody.scrollTop = 0; } },
-      h("div", { class: "nome" }, "💬 " + nome + " · Cliente " + s.slice(0, 5)),
-      h("div", { class: "meta" }, prefixo + previewMsg(last.texto) + " · " + fmtMsgHora(last.criado_em))));
+  mostrar.forEach(s=>{
+    var msgs=porSessao[s];var last=msgs[msgs.length-1];
+    var nome=nomeDoFluxo(info[s].fid);var prefixo=last.remetente==="empresa"?"Você: ":"";
+    var nNaoLidas=contarNaoLidas(s);
+    var item=h("div",{class:"fluxo-item",style:"cursor:pointer;display:flex;align-items:center;justify-content:space-between",onclick:()=>{if(s){lidasMap[s]=new Date().toISOString();try{localStorage.setItem("chatweb_conv_lidas",JSON.stringify(lidasMap));}catch(e){}conversaSessao=s;renderConversas();edBody.scrollTop=0;}}},
+      h("div",null,
+        h("div",{class:"nome"},(finalizadasSet.has(s)?"✅ ":"💬 ")+nome+" · Cliente "+s.slice(0,5)+(nNaoLidas?"  🔴"+nNaoLidas:"")),
+        h("div",{class:"meta"},prefixo+previewMsg(last.texto)+" · "+fmtMsgHora(last.criado_em))
+      ));
+    var btnBox=h("div",{style:"flex-shrink:0;margin-left:10px;display:flex;gap:4px"});
+    if(!finalizadasSet.has(s)){
+      btnBox.appendChild(h("button",{class:"btn sm gray",style:"font-size:11px;padding:3px 7px",onclick:e=>{e.stopPropagation();finalizadasSet.add(s);try{localStorage.setItem("chatweb_conv_finalizadas",JSON.stringify([...finalizadasSet]));}catch(e){}renderConversas();}},"✅ Finalizar"));
+    }else{
+      btnBox.appendChild(h("button",{class:"btn sm teal",style:"font-size:11px;padding:3px 7px",onclick:e=>{e.stopPropagation();finalizadasSet.delete(s);try{localStorage.setItem("chatweb_conv_finalizadas",JSON.stringify([...finalizadasSet]));}catch(e){}renderConversas();}},"🔄 Reabrir"));
+    }
+    item.appendChild(btnBox);card.appendChild(item);
   });
 }
 // Renderiza o conteúdo de uma mensagem (texto, imagem ou áudio) na thread do admin
