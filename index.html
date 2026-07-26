@@ -3396,7 +3396,7 @@ function renderEditor() {
   const fCard = h("div", { class: "card" },
     h("h2", null, "💬 Fluxo da conversa"),
     h("div", { class: "aviso" }, "As mensagens aparecem sozinhas, uma após a outra, no tempo (⏱️) que você definir em cada bloco. Use ▲▼ para mudar a ordem."));
-  rascunho.blocos.forEach((b, i) => fCard.appendChild(renderBloco(b, i)));
+  rascunho.blocos.forEach((b, i) => fCard.appendChild(renderBloco(b, i, cfg)));
   fCard.appendChild(h("div", { class: "add-line" },
     h("button", { class: "btn sm gray", onclick: () => { rascunho.blocos.push({ tipo: "texto", texto: "", delay: 1.5 }); renderEditor(); } }, "＋ Texto"),
     h("button", { class: "btn sm gray", onclick: () => { rascunho.blocos.push({ tipo: "pergunta", texto: "", tipoCampo: "texto", campo: "", delay: 1 }); renderEditor(); } }, "❓ Pergunta"),
@@ -3415,7 +3415,7 @@ function campoDelay(b) {
     h("input", { class: "ed-input", type: "number", min: "0", step: "0.5", value: b.delay != null ? b.delay : 1.5, oninput: e => b.delay = parseFloat(e.target.value) || 0 }));
 }
 
-function renderBloco(b, i) {
+function renderBloco(b, i, cfg) {
   const titulos = { texto: "✍️ Texto", pergunta: "❓ Pergunta (captura resposta)", botao: "🔘 Botão (com link)", imagem: "🖼️ Imagem", audio: "🎤 Áudio" };
   const card = h("div", { class: "bloco t-" + b.tipo });
   card.appendChild(h("div", { class: "bloco-top" },
