@@ -1194,6 +1194,28 @@ function esperarRespostaLivre() {
   });
 }
 
+function aplicarMetadata(cfg) {
+  var meta = cfg.meta || {};
+  var titulo = meta.titulo || cfg.empresa || "ChatWeb";
+  document.title = titulo;
+  var setMeta = function(prop, content) {
+    var el = document.querySelector('meta[property="' + prop + '"]') || document.querySelector('meta[name="' + prop + '"]');
+    if (!el) { el = document.createElement("meta"); if (prop.startsWith("og:") || prop.startsWith("twitter:")) el.setAttribute("property", prop); else el.setAttribute("name", prop); document.head.appendChild(el); }
+    el.setAttribute("content", content);
+  };
+  if (meta.titulo) { setMeta("og:title", meta.titulo); setMeta("twitter:title", meta.titulo); }
+  else if (cfg.empresa) { setMeta("og:title", cfg.empresa); setMeta("twitter:title", cfg.empresa); }
+  if (meta.descricao) { setMeta("og:description", meta.descricao); setMeta("description", meta.descricao); setMeta("twitter:description", meta.descricao); }
+  setMeta("og:type", "website");
+  if (meta.favicon) {
+    var link = document.querySelector("link[rel='icon']") || document.createElement("link");
+    link.rel = "icon"; link.type = "image/png"; link.href = meta.favicon;
+    if (!link.parentNode) document.head.appendChild(link);
+  }
+  if (meta.ogImage) { setMeta("og:image", meta.ogImage); setMeta("twitter:image", meta.ogImage); }
+  aplicarVisual();
+}
+
 function aplicarVisual() {
   document.getElementById("hdrName").textContent = CONFIG.empresa;
   const av = document.getElementById("avatar");
@@ -3397,6 +3419,58 @@ function renderEditor() {
   if (!ehAtend) cCard.appendChild(campo("Letra do avatar", cfg.avatarLetra, v => cfg.avatarLetra = v, "(usada quando não há foto)"));
   cCard.appendChild(campo("WhatsApp (DDI+DDD, só números)", cfg.whatsapp, v => cfg.whatsapp = v, ehAtend ? "(usado nos botões de WhatsApp)" : ""));
 
+  if (!ehAtend) {
+    var metaSection = h("div", { class: "fld", style: "margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)" });
+    metaSection.appendChild(h("label", null, "🖼️ Preview do link (WhatsApp/Redes)"));
+    metaSection.appendChild(h("div", { class: "hint", style: "margin-bottom:8px" }, "Personaliza como o link aparece quando compartilhado — favicon, título e descrição."));
+    cCard.appendChild(metaSection);
+
+    if (!cfg.meta) cfg.meta = {};
+    cCard.appendChild(campo("Título da página (aba do navegador)", cfg.meta.titulo || cfg.empresa || "", v => { if (!cfg.meta) cfg.meta = {}; cfg.meta.titulo = v; }, "ex: WhatsApp - Atendimento"));
+
+    cCard.appendChild(campo("Descrição (aparece no preview do link)", cfg.meta.descricao || "", v => { if (!cfg.meta) cfg.meta = {}; cfg.meta.descricao = v; }, "ex: Fale comigo agora"));
+
+    var favImg = h("div", { style: "width:48px;height:48px;border-radius:10px;overflow:hidden;background:#2a2a2a;display:grid;place-items:center;flex-shrink:0;border:2px solid rgba(255,215,0,.2)" });
+    function renderFavPrev() {
+      favImg.innerHTML = "";
+      if (cfg.meta && cfg.meta.favicon) { var im = document.createElement("img"); im.src = cfg.meta.favicon; im.style.cssText = "width:100%;height:100%;object-fit:cover"; favImg.appendChild(im); }
+      else { favImg.textContent = "🌐"; favImg.style.fontSize = "22px"; }
+    }
+    renderFavPrev();
+    var favFile = h("input", { type: "file", accept: "image/*", style: "display:none",
+      onchange: function(e) { var f = e.target.files[0]; if (!f) return; if (f.size > 1 * 1024 * 1024) { toast("Imagem grande demais (máx ~1MB)."); return; } var fr = new FileReader(); fr.onload = function() { if (!cfg.meta) cfg.meta = {}; cfg.meta.favicon = fr.result; toast("Favicon adicionado!"); renderEditor(); }; fr.readAsDataURL(f); } });
+    var favUrl = h("input", { class: "ed-input", style: "margin-top:6px", value: (cfg.meta && cfg.meta.favicon && cfg.meta.favicon.slice(0, 5) !== "data:") ? cfg.meta.favicon : "", placeholder: "ou cole a URL da imagem", oninput: function(e) { if (!cfg.meta) cfg.meta = {}; cfg.meta.favicon = e.target.value; renderFavPrev(); } });
+    var favCtrl = h("div", { style: "flex:1;min-width:160px" },
+      h("div", { class: "add-line" },
+        h("button", { class: "btn sm green", onclick: function() { favFile.click(); } }, (cfg.meta && cfg.meta.favicon) ? "🖼️ Trocar favicon" : "🖼️ Enviar favicon"),
+        (cfg.meta && cfg.meta.favicon) ? h("button", { class: "btn sm red", onclick: function() { if (!cfg.meta) cfg.meta = {}; cfg.meta.favicon = ""; renderEditor(); } }, "Remover") : null,
+        favFile),
+      favUrl);
+    cCard.appendChild(h("div", { class: "fld" },
+      h("label", null, "Favicon (ícone do link) ", h("span", { class: "hint" }, "(recomenda 64x64px)")),
+      h("div", { style: "display:flex;gap:12px;align-items:flex-start;margin-top:4px" }, favImg, favCtrl)));
+
+    var ogImgPrev = h("div", { style: "width:120px;height:68px;border-radius:8px;overflow:hidden;background:#2a2a2a;display:grid;place-items:center;flex-shrink:0;border:1px solid rgba(255,215,0,.15)" });
+    function renderOgPrev() {
+      ogImgPrev.innerHTML = "";
+      if (cfg.meta && cfg.meta.ogImage) { var im = document.createElement("img"); im.src = cfg.meta.ogImage; im.style.cssText = "width:100%;height:100%;object-fit:cover"; ogImgPrev.appendChild(im); }
+      else { ogImgPrev.textContent = "🖼️"; ogImgPrev.style.fontSize = "24px"; }
+    }
+    renderOgPrev();
+    var ogFile = h("input", { type: "file", accept: "image/*", style: "display:none",
+      onchange: function(e) { var f = e.target.files[0]; if (!f) return; if (f.size > 2 * 1024 * 1024) { toast("Imagem grande demais (máx ~2MB)."); return; } var fr = new FileReader(); fr.onload = function() { if (!cfg.meta) cfg.meta = {}; cfg.meta.ogImage = fr.result; toast("Imagem de preview adicionada!"); renderEditor(); }; fr.readAsDataURL(f); } });
+    var ogUrl = h("input", { class: "ed-input", style: "margin-top:6px", value: (cfg.meta && cfg.meta.ogImage && cfg.meta.ogImage.slice(0, 5) !== "data:") ? cfg.meta.ogImage : "", placeholder: "ou cole a URL da imagem", oninput: function(e) { if (!cfg.meta) cfg.meta = {}; cfg.meta.ogImage = e.target.value; renderOgPrev(); } });
+    var ogCtrl = h("div", { style: "flex:1;min-width:160px" },
+      h("div", { class: "add-line" },
+        h("button", { class: "btn sm green", onclick: function() { ogFile.click(); } }, (cfg.meta && cfg.meta.ogImage) ? "🖼️ Trocar imagem" : "🖼️ Enviar imagem de preview"),
+        (cfg.meta && cfg.meta.ogImage) ? h("button", { class: "btn sm red", onclick: function() { if (!cfg.meta) cfg.meta = {}; cfg.meta.ogImage = ""; renderEditor(); } }, "Remover") : null,
+        ogFile),
+      ogUrl);
+    cCard.appendChild(h("div", { class: "fld" },
+      h("label", null, "Imagem de preview (WhatsApp/Redes) ", h("span", { class: "hint" }, "(recomenda 1200x630px)")),
+      h("div", { style: "display:flex;gap:12px;align-items:flex-start;margin-top:4px" }, ogImgPrev, ogCtrl)));
+  }
+
   if (!cfg.linksPagamento) cfg.linksPagamento = [];
   var pagSection = h("div", { class: "fld", style: "margin-top:8px" });
   pagSection.appendChild(h("label", null, "Links de pagamento"));
@@ -4195,7 +4269,7 @@ async function carregarSlug() {
   if (fluxoPorSlug && fluxoPorSlug.blocos && fluxoPorSlug.blocos.length) {
     CONFIG = fluxoPorSlug.config; BLOCOS = fluxoPorSlug.blocos;
     PROJETO.atual = fluxoPorSlug.id; FLOW_ID = fluxoPorSlug.id;
-    document.title = (fluxoPorSlug.config && fluxoPorSlug.config.empresa ? fluxoPorSlug.config.empresa : "ChatWeb");
+    aplicarMetadata(fluxoPorSlug.config || {});
     tocarFluxo();
     return;
   }
@@ -4210,8 +4284,7 @@ async function carregarSlug() {
       var cfg = typeof fluxo.config === "string" ? JSON.parse(fluxo.config) : (fluxo.config || {});
       CONFIG = cfg; BLOCOS = blocos;
       OWNER_ID = fluxo.owner_id || null; FLOW_ID = fluxo.id;
-      document.title = (cfg.empresa ? cfg.empresa : "ChatWeb");
-      aplicarVisual();
+      aplicarMetadata(cfg);
       tocarFluxo();
       return;
     }
@@ -4237,7 +4310,7 @@ async function carregarLinkCurto() {
     const f = normalizarFluxoSolto(d);
     CONFIG = f.config; BLOCOS = f.blocos;
     OWNER_ID = d.owner || null; FLOW_ID = d.fid || null;
-    aplicarVisual();
+    aplicarMetadata(f.config || {});
     // 🔒 Tranca da assinatura: só serve o funil se o dono estiver em dia
     const ativo = await funilAtivo(FLOW_ID || LINK_CURTO);
     if (!ativo) { mostrarFunilIndisponivel(); return; }
