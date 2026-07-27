@@ -39,7 +39,7 @@ module.exports = async function handler(req, res) {
     // POST — cria fluxo (autenticado)
     if (req.method === "POST") {
       if (!user) return res.status(401).json({ erro: "Não autorizado." });
-      const { nome, slug, config, blocos } = req.body || {};
+      const { id, nome, slug, config, blocos } = req.body || {};
 
       // Garante que o projeto/owner existe
       let proj = await sql`SELECT id FROM projetos WHERE owner_id = ${user.id} LIMIT 1`;
@@ -48,8 +48,11 @@ module.exports = async function handler(req, res) {
       }
       const projeto_id = proj[0].id;
 
-      const rows = await sql`INSERT INTO fluxos (projeto_id, owner_id, nome, slug, config, blocos)
-        VALUES (${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${JSON.stringify(config || {})}, ${JSON.stringify(blocos || [])})
+      // Usa ID do cliente se fornecido, senão gera novo
+      const fid = id && typeof id === "string" && id.length > 3 ? id : "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+      const rows = await sql`INSERT INTO fluxos (id, projeto_id, owner_id, nome, slug, config, blocos)
+        VALUES (${fid}, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${JSON.stringify(config || {})}, ${JSON.stringify(blocos || [])})
         RETURNING id, nome, slug, config, blocos, publicado, criado_em, atualizado_em`;
       return res.status(201).json(rows[0]);
     }

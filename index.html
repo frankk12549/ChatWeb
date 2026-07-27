@@ -4132,6 +4132,7 @@ async function salvarProjetoNuvem() {
         });
       } else {
         const criado = await apiSalvarFluxo({
+          id: f.id,
           nome: f.nome, slug: f.slug || "",
           config: f.config, blocos: extraido.blocos
         });
