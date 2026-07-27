@@ -342,15 +342,29 @@
 
   /* Métricas */
   .metrica { border: 1px solid #ecedf1; border-radius: 16px; padding: 18px; margin-bottom: 14px; background: #fff; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
-  .conv-thread { display: flex; flex-direction: column; gap: 8px; max-height: 52vh; overflow-y: auto; padding: 10px 8px; background: #efeae2; border-radius: 10px; }
-  .conv-msg { max-width: 82%; padding: 8px 11px 6px; border-radius: 9px; font-size: 14px; line-height: 1.35; box-shadow: 0 1px .5px rgba(0,0,0,.13); word-wrap: break-word; }
-  .conv-msg.cli { align-self: flex-start; background: #fff; border-top-left-radius: 0; color: #111b21; }
-  .conv-msg.eu { align-self: flex-end; background: #FFF9C4; border-top-right-radius: 0; color: #111b21; }
-  .conv-msg .ct { font-size: 10px; color: #667781; margin-top: 3px; text-align: right; }
-  .conv-msg img.conv-media { max-width: 100%; max-height: 260px; border-radius: 8px; display: block; }
-  .conv-msg audio { max-width: 230px; height: 38px; display: block; }
+  .conv-thread { max-height: 52vh; overflow-y: auto; padding: 10px 8px; background: #efeae2; border-radius: 10px; }
+  .conv-date { text-align: center; font-size: 11.5px; color: #667781; padding: 4px 0 6px; font-weight: 500; }
+  .conv-row { display: flex; align-items: flex-end; gap: 6px; margin-bottom: 4px; }
+  .conv-row.cli { justify-content: flex-start; }
+  .conv-row.eu { justify-content: flex-end; }
+  .conv-av { width: 30px; height: 30px; border-radius: 50%; background: #075E54; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; overflow: hidden; }
+  .conv-av.eu { background: #008069; order: 1; }
+  .conv-av.spacer { visibility: hidden; }
+  .conv-av img { width: 100%; height: 100%; object-fit: cover; }
+  .conv-msg { max-width: 72%; padding: 7px 10px 6px; border-radius: 9px; font-size: 14px; line-height: 1.35; box-shadow: 0 1px .5px rgba(0,0,0,.13); word-wrap: break-word; }
+  .conv-msg.cli { background: #fff; border-top-left-radius: 0; color: #111b21; }
+  .conv-msg.eu { background: #D9FDD3; border-top-right-radius: 0; color: #111b21; }
+  .conv-msg .ct { font-size: 10px; color: #667781; margin-top: 3px; text-align: right; white-space: nowrap; }
+  .conv-msg.eu .ct::after { content: " ✓✓"; color: #53bdeb; font-size: 10px; }
+  .conv-msg img.conv-media { max-width: 100%; max-height: 260px; border-radius: 8px; display: block; cursor: pointer; }
+  .conv-msg .conv-audio-wrap { display: flex; align-items: center; gap: 7px; }
+  .conv-msg .conv-audio-wrap canvas { border-radius: 4px; }
   .btn.gravando { background: #c0392b !important; color: #fff !important; }
   body.dark .conv-thread { background: #0a0a0a; }
+  body.dark .conv-msg.cli { background: #1f2c33; color: #e9edef; }
+  body.dark .conv-msg.eu { background: #005c4b; color: #e9edef; }
+  body.dark .conv-msg .ct { color: rgba(233,237,239,.5); }
+  body.dark .conv-msg.eu .ct::after { color: #6bcbef; }
   /* Abas por fluxo (estilo navegador) na tela de Conversas */
   .conv-tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end; margin: 4px 0 14px; border-bottom: 1px solid rgba(255,255,255,.08); padding-bottom: 0; }
   .conv-tab { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 10px 10px 0 0; font-size: 13px; font-weight: 600; cursor: pointer; background: rgba(255,255,255,.04); color: rgba(255,255,255,.62); border: 1px solid rgba(255,255,255,.07); border-bottom: none; transition: background .15s, color .15s; white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
@@ -3039,7 +3053,7 @@ function renderConvConteudo(texto) {
     } catch (e) {}
   }
   if (t.slice(0, 11) === "data:image/") { const im = document.createElement("img"); im.className = "conv-media"; im.src = t; im.alt = ""; im.style.cursor = "pointer"; im.onclick = () => window.open(t, "_blank"); return im; }
-  if (t.slice(0, 11) === "data:audio/") { const au = document.createElement("audio"); au.controls = true; au.preload = "metadata"; au.src = t; return au; }
+  if (t.slice(0, 11) === "data:audio/") { return criarPlayerAudio(t); }
   if (t.slice(0, 5) === "data:") { const a = document.createElement("a"); a.href = t; a.target = "_blank"; a.download = "comprovante"; a.textContent = "📎 Abrir arquivo/comprovante"; a.style.cssText = "color:inherit;font-weight:700;text-decoration:underline"; return a; }
   const d = document.createElement("div"); d.className = "cb"; d.textContent = t; return d;
 }
@@ -3136,6 +3150,7 @@ async function renderConversa(sessao) {
   content.appendChild(card);
   edBody.appendChild(dashShell("conversas", content));
   let ultimoN = -1;
+  var avatarCache = null;
   async function carregar() {
     try {
       const linhas = await apiCall("GET", "mensagens?sessao=" + encodeURIComponent(sessao)) || [];
@@ -3143,14 +3158,57 @@ async function renderConversa(sessao) {
       const fluxo = fid && PROJETO ? PROJETO.fluxos.find(f => f.id === fid) : null;
       const orig = document.getElementById("convOrigem");
       if (orig) orig.textContent = "Veio do funil: " + (fluxo ? fluxo.nome : (fid ? fid.slice(0, 6) : "—")) + " · Cliente " + sessao.slice(0, 5);
-      if (linhas.length === ultimoN) return;   // nada novo → não redesenha (não corta áudio tocando)
+      if (linhas.length === ultimoN) return;
+      if (!avatarCache && fluxo) {
+        var cfg = fluxo.config || {};
+        if (typeof cfg === "string") { try { cfg = JSON.parse(cfg); } catch (e) { cfg = {}; } }
+        avatarCache = { foto: cfg.avatarFoto || "", letra: cfg.avatarLetra || (cfg.empresa || "E").charAt(0).toUpperCase() };
+      }
       ultimoN = linhas.length;
       thread.innerHTML = "";
-      linhas.forEach(m => {
-        const bolha = h("div", { class: "conv-msg " + (m.remetente === "empresa" ? "eu" : "cli") });
+      var lastDate = "", lastSender = "";
+      linhas.forEach((m, idx) => {
+        var d = new Date(m.criado_em);
+        var dateStr = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+        if (dateStr !== lastDate) {
+          var sep;
+          if (dateStr === new Date().toLocaleDateString("pt-BR")) sep = "Hoje";
+          else {
+            var yest = new Date(Date.now() - 864e5);
+            sep = dateStr === yest.toLocaleDateString("pt-BR") ? "Ontem" : dateStr;
+          }
+          thread.appendChild(h("div", { class: "conv-date" }, sep));
+          lastDate = dateStr;
+        }
+        var isEmpresa = m.remetente === "empresa";
+        var sameSender = idx > 0 && isEmpresa === (linhas[idx - 1].remetente === "empresa");
+        var row = h("div", { class: "conv-row " + (isEmpresa ? "eu" : "cli") });
+        // Avatar do lado do cliente (esquerda)
+        if (!isEmpresa) {
+          if (!sameSender) {
+            var cav = h("div", { class: "conv-av" });
+            cav.textContent = sessao.charAt(0).toUpperCase();
+            row.appendChild(cav);
+          } else {
+            row.appendChild(h("div", { class: "conv-av spacer" }));
+          }
+        }
+        var bolha = h("div", { class: "conv-msg " + (isEmpresa ? "eu" : "cli") });
         bolha.appendChild(renderConvConteudo(m.texto));
         bolha.appendChild(h("div", { class: "ct" }, fmtMsgHora(m.criado_em)));
-        thread.appendChild(bolha);
+        row.appendChild(bolha);
+        // Avatar do lado da empresa (direita)
+        if (isEmpresa) {
+          if (!sameSender) {
+            var eav = h("div", { class: "conv-av eu" });
+            if (avatarCache && avatarCache.foto) { var ei = document.createElement("img"); ei.src = avatarCache.foto; ei.alt = ""; eav.appendChild(ei); }
+            else eav.textContent = avatarCache ? avatarCache.letra : "E";
+            row.appendChild(eav);
+          } else {
+            row.appendChild(h("div", { class: "conv-av eu spacer" }));
+          }
+        }
+        thread.appendChild(row);
       });
       thread.scrollTop = thread.scrollHeight;
     } catch (e) {}
