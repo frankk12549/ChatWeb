@@ -2839,6 +2839,7 @@ async function renderConversas() {
     cfgUser.conv_finalizadas = [...finalizadasSet];
     USER_CONFIG = cfgUser;
     if(API_TOKEN && USUARIO) apiSalvarUserConfig(cfgUser);
+  }
   var ativas = lista.filter(s => !finalizadasSet.has(s));
   var finalizadas = lista.filter(s => finalizadasSet.has(s));
   function contarNaoLidas(s){
