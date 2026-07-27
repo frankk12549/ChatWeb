@@ -1,6 +1,14 @@
 {
   "version": 2,
   "installCommand": "npm install",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "x-vercel-skip-toolbar", "value": "1" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
     { "source": "/((?!api/)[^.]+)", "destination": "/lead.html" }

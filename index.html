@@ -13,7 +13,8 @@
 <meta name="apple-mobile-web-app-title" content="ChatWeb">
 <meta name="theme-color" content="#075E54">
 <link rel="manifest" href="manifest.webmanifest">
-<!-- Supabase removido (modo bypass) -->
+<meta name="vercel-toolbar" content="false">
+<style>vercel-live-feedback,vercel-toolbar-button,[data-vercel-toolbar],[data-vercel-toolbar-root],#vercel-live-feedback,.vercel-toolbar-button{display:none!important;visibility:hidden!important;pointer-events:none!important;opacity:0!important;width:0!important;height:0!important}</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
@@ -1540,6 +1541,7 @@ function renderTela() {
   else if (edModo === "lista") { edTitulo.textContent = "📁 Meus fluxos"; renderAdmin(); }
   else if (edModo === "atendimentos") { edTitulo.textContent = "💬 Fluxos de atendimento"; renderAtendimentos(); }
   else if (edModo === "metricas") { edTitulo.textContent = "📊 Métricas"; renderMetricas(); }
+  else if (edModo === "atividade") { edTitulo.textContent = "⚡ Atividade"; renderAtividadeCompleta(); }
   else if (edModo === "respostas") { edTitulo.textContent = "📥 Respostas"; renderRespostas(); }
   else if (edModo === "conversas") { edTitulo.textContent = "💬 Conversas"; renderConversas(); }
   else if (edModo === "contatos") { edTitulo.textContent = "👥 Contatos"; renderContatos(); }
@@ -2567,7 +2569,7 @@ async function renderOverview() {
   fcard.appendChild(funwrap);
   fa.appendChild(fcard);
   const acard = h("div", { class: "pc dcard" });
-  acard.appendChild(h("div", { class: "dact-hd" }, h("div", { class: "dc-lb" }, "Atividade recente"), h("button", { class: "vt", onclick: () => toast("Ver tudo — em breve!") }, "Ver tudo")));
+  acard.appendChild(h("div", { class: "dact-hd" }, h("div", { class: "dc-lb" }, "Atividade recente"), h("button", { class: "vt", onclick: () => navTo("atividade") }, "Ver tudo")));
   const alist = h("div", { class: "dact" });
   if (!atividade.length) {
     alist.appendChild(h("div", { class: "dact-item" }, h("span", { class: "adot muted" }), h("div", null, h("div", { class: "atx" }, "Sem atividade ainda."), h("div", { class: "atm" }, "Compartilhe um funil pra começar"))));
@@ -2605,15 +2607,120 @@ async function renderOverview() {
 
 /* ----- MÉTRICAS ----- */
 function abrirMetricas() { navTo("metricas"); }
+async function renderAtividadeCompleta() {
+  edBody.innerHTML = "";
+  const content = h("main", { class: "dash-content" });
+  const card = h("div", { class: "card" },
+    h("h2", null, "⚡ Atividade completa"),
+    h("div", { class: "aviso" }, "Todas as atividades dos seus funis — visitas, cliques, mensagens e respostas."));
+  card.appendChild(h("button", { class: "voltar", onclick: () => navTo("overview") }, "‹ Voltar à visão geral"));
+  const carregando = h("div", { style: "color:#8a97a0;font-size:14px;padding:10px 2px" }, "Carregando…");
+  card.appendChild(carregando);
+  content.appendChild(card);
+  edBody.appendChild(dashShell("overview", content));
+
+  let eventos = [], mensagens = [];
+  var nomesAt = {};
+  try {
+    if (API_TOKEN && USUARIO) {
+      const [re, rm, fx] = await Promise.all([
+        apiCall("GET", "eventos"),
+        apiCall("GET", "mensagens?owner_id=" + USUARIO.id),
+        apiListarFluxos(USUARIO.id)
+      ]);
+      eventos = re || []; mensagens = rm || [];
+      if (fx && Array.isArray(fx)) fx.forEach(f => { nomesAt[f.id] = f.nome; });
+    }
+  } catch (e) { console.warn("Atividade:", e); }
+  if (PROJETO && PROJETO.fluxos) PROJETO.fluxos.forEach(f => { if (!nomesAt[f.id]) nomesAt[f.id] = f.nome; });
+  carregando.remove();
+
+  const nomeFlow = fid => nomesAt[fid] ? ("“" + nomesAt[fid] + "”") : "um funil";
+  const atos = [];
+  eventos.forEach(e => atos.push({ t: e.criado_em, tipo: "ev", sub: e.tipo, flow_id: e.fluxo_id || e.flow_id }));
+  mensagens.forEach(m => {
+    if (m.remetente === "cliente") atos.push({ t: m.criado_em, tipo: "msg", flow_id: m.fluxo_id || m.flow_id, texto: m.texto });
+    else if (m.remetente === "empresa") atos.push({ t: m.criado_em, tipo: "emp", flow_id: m.fluxo_id || m.flow_id });
+  });
+  atos.sort((a, b) => new Date(b.t) - new Date(a.t));
+
+  if (!atos.length) {
+    card.appendChild(h("div", { style: "color:#8a97a0;font-size:14px;padding:10px 2px" }, "Nenhuma atividade ainda. Compartilhe um funil pra começar."));
+    return;
+  }
+
+  // Filtro por tipo
+  var filtroTipo = "todos";
+  const listaEl = h("div", { class: "dact", style: "margin-top:12px" });
+  function desenhar() {
+    listaEl.innerHTML = "";
+    var filtrados = atos.filter(a => {
+      if (filtroTipo === "todos") return true;
+      if (filtroTipo === "visitas") return a.tipo === "ev" && (a.sub === "abriu" || a.sub === "entrou");
+      if (filtroTipo === "pagamentos") return a.tipo === "ev" && (a.sub === "clicou_pagamento" || a.sub === "chegou_pagamento");
+      if (filtroTipo === "mensagens") return a.tipo === "msg" || a.tipo === "emp";
+      if (filtroTipo === "whatsapp") return a.tipo === "ev" && a.sub === "clicou_whatsapp";
+      return true;
+    });
+    if (!filtrados.length) {
+      listaEl.appendChild(h("div", { style: "color:#8a97a0;font-size:14px;padding:10px 2px" }, "Nada nesse filtro."));
+      return;
+    }
+    filtrados.slice(0, 200).forEach(a => {
+      let text = "Atividade", tone = "muted";
+      if (a.tipo === "ev") {
+        if (a.sub === "pediu_atendente" || a.sub === "clicou_atendente") { text = "Cliente pediu atendente em " + nomeFlow(a.flow_id); tone = "emerald"; }
+        else if (a.sub === "clicou_pagamento") { text = "Cliente clicou em pagar em " + nomeFlow(a.flow_id); tone = "emerald"; }
+        else if (a.sub === "chegou_pagamento") { text = "Cliente chegou ao pagamento em " + nomeFlow(a.flow_id); tone = "sky"; }
+        else if (a.sub === "entrou" || a.sub === "abriu") { text = "Novo visitante em " + nomeFlow(a.flow_id); tone = "sky"; }
+        else if (a.sub === "clicou_whatsapp") { text = "Cliente foi para o WhatsApp em " + nomeFlow(a.flow_id); tone = "emerald"; }
+        else if (a.sub && a.sub.indexOf("bloco:") === 0) { text = "Visitante chegou no bloco " + a.sub.slice(6) + " em " + nomeFlow(a.flow_id); tone = "muted"; }
+        else { text = "Evento: " + (a.sub || "?") + " em " + nomeFlow(a.flow_id); tone = "muted"; }
+      } else if (a.tipo === "msg") {
+        var prev = (a.texto || "").slice(0, 60);
+        if (prev.slice(0, 11) === "data:image/") prev = "📷 imagem";
+        else if (prev.slice(0, 11) === "data:audio/") prev = "🎤 áudio";
+        else if (prev.slice(0, 5) === "data:") prev = "📎 arquivo";
+        text = "Mensagem do cliente em " + nomeFlow(a.flow_id) + (prev ? ": “" + prev + "”" : "");
+        tone = "emerald";
+      } else if (a.tipo === "emp") { text = "Você respondeu em " + nomeFlow(a.flow_id); tone = "sky"; }
+      listaEl.appendChild(h("div", { class: "dact-item" },
+        h("span", { class: "adot " + tone }),
+        h("div", null,
+          h("div", { class: "atx" }, text),
+          h("div", { class: "atm" }, tempoRelativo(a.t) + (a.t ? " · " + new Date(a.t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""))
+        )));
+    });
+    if (filtrados.length > 200) {
+      listaEl.appendChild(h("div", { style: "color:#8a97a0;font-size:12px;padding:10px 2px;text-align:center" }, "Mostrando as 200 mais recentes de " + filtrados.length + "."));
+    }
+  }
+  const filtros = h("div", { class: "add-line", style: "margin:8px 0 4px" });
+  [["todos", "Tudo"], ["visitas", "Visitas"], ["pagamentos", "Pagamentos"], ["mensagens", "Mensagens"], ["whatsapp", "WhatsApp"]].forEach(([k, l]) => {
+    const b = h("button", { class: "btn sm " + (k === "todos" ? "teal" : "gray"), onclick: function() {
+      filtroTipo = k;
+      Array.prototype.forEach.call(filtros.children, c => { c.className = "btn sm gray"; });
+      b.className = "btn sm teal";
+      desenhar();
+    } }, l);
+    filtros.appendChild(b);
+  });
+  card.appendChild(filtros);
+  card.appendChild(h("div", { style: "font-size:12px;color:#8a97a0;margin:4px 0 8px" }, atos.length + " atividades no total"));
+  card.appendChild(listaEl);
+  desenhar();
+}
 
 let MET_PERIODO = "tudo", MET_DE = "", MET_ATE = "", MET_FLUXO = "todos";
+let _metTimer = null;
 async function renderMetricas() {
+  if (_metTimer) { clearInterval(_metTimer); _metTimer = null; }
   edBody.innerHTML = "";
   const content = h("main", { class: "dash-content" });
   content.appendChild(printCabecalho("Relatório de Métricas"));
   const card = h("div", { class: "card" },
     h("h2", null, "📊 Métricas de conversão"),
-    h("div", { class: "aviso" }, "Atividade dos visitantes, separada por funil. Use o filtro para ver por período."));
+    h("div", { class: "aviso" }, "Atividade dos visitantes, separada por funil. Use o filtro para ver por período. Atualiza a cada 15s."));
   const filtro = h("div", { class: "add-line", style: "margin-bottom:10px" });
   [["tudo", "Tudo"], ["hoje", "Hoje"], ["7d", "7 dias"], ["30d", "30 dias"]].forEach(([k, l]) =>
     filtro.appendChild(h("button", { class: "btn sm " + (MET_PERIODO === k ? "teal" : "gray"), onclick: () => { MET_PERIODO = k; MET_DE = ""; MET_ATE = ""; renderMetricas(); } }, l)));
@@ -2631,12 +2738,18 @@ async function renderMetricas() {
   edBody.appendChild(dashShell("metricas", content));
 
   let dados = [];
+  var nomesMet = {};
   try {
     if (API_TOKEN && USUARIO) {
-      const r = await apiCall("GET", "eventos");
+      const [r, fluxosApi] = await Promise.all([
+        apiCall("GET", "eventos"),
+        apiListarFluxos(USUARIO.id)
+      ]);
       dados = r || [];
+      if (fluxosApi && Array.isArray(fluxosApi)) fluxosApi.forEach(f => { nomesMet[f.id] = f.nome; });
     }
   } catch (e) { console.warn("Métricas:", e); }
+  if (PROJETO && PROJETO.fluxos) PROJETO.fluxos.forEach(f => { if (!nomesMet[f.id]) nomesMet[f.id] = f.nome; });
   carregando.remove();
 
   let cutStart = 0, cutEnd = Infinity;
@@ -2662,9 +2775,9 @@ async function renderMetricas() {
 
   const porFluxo = {};
   dadosF.forEach(e => {
-    const fid = e.fluxo_id || "—";
+    const fid = e.fluxo_id || e.flow_id || "—";
     const g = porFluxo[fid] || (porFluxo[fid] = { abriu: new Set(), chegou: new Set(), clicou: new Set(), zap: new Set(), atendente: new Set(), blocos: {}, min: 0, max: 0 });
-    const s = e.sessao_id || ("x" + Math.random());
+    const s = e.sessao_id || e.sessao || ("x" + Math.random());
     if (e.criado_em) { const t = new Date(e.criado_em).getTime(); if (!g.min || t < g.min) g.min = t; if (t > g.max) g.max = t; }
     if (e.tipo === "abriu") g.abriu.add(s);
     else if (e.tipo === "chegou_pagamento") g.chegou.add(s);
@@ -2682,11 +2795,12 @@ async function renderMetricas() {
   card.appendChild(h("div", { class: "add-line no-print", style: "margin:2px 0 14px" },
     h("button", { class: "btn sm gray", onclick: () => window.print() }, "🖨️ Imprimir / Salvar PDF"),
     h("button", { class: "btn sm gray", onclick: () => baixarMetricasCSV(linhas) }, "⬇️ Baixar (CSV)")));
-  // ---- Seletor de funil (abas) ----
+  // ---- Seletor de funil (abas com nomes reais) ----
   const fids = Object.keys(porFluxo);
-  const nomeFid = fid => { const fx = PROJETO && PROJETO.fluxos.find(f => f.id === fid); return fx ? fx.nome : (fid === "—" ? "Sem identificação" : "Funil " + fid.slice(0, 6)); };
+  const nomeFid = fid => nomesMet[fid] || (fid === "—" ? "Sem identificação" : "Funil " + fid.slice(0, 6));
   if (MET_FLUXO !== "todos" && fids.indexOf(MET_FLUXO) === -1) MET_FLUXO = "todos";
-  if (fids.length > 1) {
+  // Sempre mostra seletor (mesmo com 1 funil) pra ficar claro
+  {
     const tabAba = (key, label, count) => {
       const b = h("div", { class: "conv-tab" + (MET_FLUXO === key ? " on" : ""), title: label, onclick: () => { MET_FLUXO = key; renderMetricas(); } }, h("span", null, label));
       if (count != null) b.appendChild(h("span", { class: "cnt" }, String(count)));
@@ -2702,15 +2816,21 @@ async function renderMetricas() {
   mostrarFids.forEach((fid, idx) => {
     const g = porFluxo[fid];
     const fluxo = PROJETO && PROJETO.fluxos.find(f => f.id === fid);
-    const nomeFluxo = fluxo ? fluxo.nome : (fid === "—" ? "Sem identificação" : "Funil " + fid.slice(0, 6));
+    const nomeFluxo = nomeFid(fid);
     const v = g.abriu.size, p = g.chegou.size, c = g.clicou.size, w = g.zap.size, at = g.atendente.size;
     const conv = v ? Math.round((c / v) * 100) : 0;
     const sub = g.min ? (fmtDia(g.min) === fmtDia(g.max) ? "🗓️ Atividade em " + fmtDia(g.min) : "🗓️ De " + fmtDia(g.min) + " a " + fmtDia(g.max)) : "";
     linhas.push({ funil: nomeFluxo, visitantes: v, pagamento: p, cliques: c, atendente: at, whatsapp: w, conversao: conv + "%", periodo: sub.replace(/^🗓️ /, "") });
-    const el = cardMetrica(fluxo ? "💬 " + nomeFluxo : nomeFluxo, v, p, c, w, conv, g.blocos, fluxo, sub, at);
-    if (idx > 0) el.classList.add("met-quebra");   // no PDF, cada funil começa numa página
+    const el = cardMetrica(fluxo ? "💬 " + nomeFluxo : "💬 " + nomeFluxo, v, p, c, w, conv, g.blocos, fluxo, sub, at);
+    if (idx > 0) el.classList.add("met-quebra");
     card.appendChild(el);
   });
+
+  // Auto-refresh a cada 15s enquanto estiver na tela de métricas
+  _metTimer = setInterval(() => {
+    if (edModo === "metricas") renderMetricas();
+    else { clearInterval(_metTimer); _metTimer = null; }
+  }, 15000);
 }
 function baixarMetricasCSV(linhas) {
   if (!linhas || !linhas.length) { toast("Sem dados pra baixar neste período."); return; }
@@ -2763,15 +2883,24 @@ async function renderConversas() {
   let dados = [];
   try { if (API_TOKEN && USUARIO) { const r = await apiCall("GET", "mensagens?owner_id=" + USUARIO.id); dados = r || []; } }
   catch (e) { console.warn("Conversas:", e); }
-  // Busca nomes reais dos funis pela API
-  var nomesFluxos = {};
+  // Nomes + configs dos funis (API + local) — respeita "Mostrar em Conversas"
+  var nomesFluxos = {}, configsFluxos = {};
   try {
     if (API_TOKEN && USUARIO) {
       const fluxosApi = await apiListarFluxos(USUARIO.id);
-      if (fluxosApi && Array.isArray(fluxosApi)) fluxosApi.forEach(f => { nomesFluxos[f.id] = f.nome; });
+      if (fluxosApi && Array.isArray(fluxosApi)) fluxosApi.forEach(f => {
+        nomesFluxos[f.id] = f.nome;
+        var cfg = f.config;
+        if (typeof cfg === "string") { try { cfg = JSON.parse(cfg); } catch (e) { cfg = {}; } }
+        configsFluxos[f.id] = cfg || {};
+      });
     }
   } catch (e) {}
-  if (PROJETO && PROJETO.fluxos) PROJETO.fluxos.forEach(f => { if (!nomesFluxos[f.id]) nomesFluxos[f.id] = f.nome; });
+  if (PROJETO && PROJETO.fluxos) PROJETO.fluxos.forEach(f => {
+    if (!nomesFluxos[f.id]) nomesFluxos[f.id] = f.nome;
+    // Local só preenche se a API não trouxe esse funil (evita config local desatualizada)
+    if (!configsFluxos[f.id]) configsFluxos[f.id] = f.config || {};
+  });
   carregando.remove();
   const porSessao = {};
   dados.forEach(m => { (porSessao[m.sessao] = porSessao[m.sessao] || []).push(m); });
@@ -2790,12 +2919,18 @@ async function renderConversas() {
     info[s] = { fid: fid, lastT: lastT };
   });
   const nomeDoFluxo = fid => nomesFluxos[fid] || (fid === "—" ? "Sem identificação" : "Funil " + fid.slice(0, 6));
+  // Só mostra se mostrarEmConversas for explicitamente true (ou undefined = padrão true no CONFIG_PADRAO)
+  // Se estiver false (desmarcado), NÃO aparece.
   const funilVisivel = fid => {
-    if (fid === "—") return true;
-    const fx = PROJETO && PROJETO.fluxos.find(f => f.id === fid);
-    if (!fx) return true;
-    const cfgFx = fx.config || {};
-    return cfgFx.mostrarEmConversas !== false;
+    if (fid === "—") return false;
+    var cfg = configsFluxos[fid];
+    if (!cfg) {
+      var fx = PROJETO && PROJETO.fluxos.find(f => f.id === fid);
+      cfg = fx ? (fx.config || {}) : null;
+    }
+    // Se não achou o funil, esconde (não vaza conversa de funil desconhecido)
+    if (!cfg) return false;
+    return cfg.mostrarEmConversas !== false;
   };
 
   // ---- Filtro por data ----
@@ -3569,7 +3704,11 @@ function renderEditor() {
     var convSection = h("div", { class: "fld", style: "margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)" });
     var convChk = h("input", { type: "checkbox", checked: cfg.mostrarEmConversas !== false ? "checked" : undefined, style: "accent-color:#00A884;width:16px;height:16px;margin-right:6px" });
     convChk.checked = cfg.mostrarEmConversas !== false;
-    convChk.onchange = function() { cfg.mostrarEmConversas = convChk.checked; };
+    convChk.onchange = function() {
+      cfg.mostrarEmConversas = !!convChk.checked;
+      // Salva na hora pra Conversas respeitar imediatamente
+      try { salvar(true); toast(convChk.checked ? "✅ Mensagens deste funil vão aparecer em Conversas" : "🙈 Mensagens deste funil ocultas em Conversas"); } catch (e) {}
+    };
     var convLabel = h("label", { class: "chk", style: "cursor:pointer" }, convChk, " Mostrar mensagens nesta conversa");
     convSection.appendChild(h("label", { style: "font-size:12.5px;font-weight:600;margin-bottom:4px;display:block;color:#445" }, "📊 Conversas"));
     convSection.appendChild(h("div", { class: "hint", style: "margin-bottom:6px" }, "Se desligado, as mensagens deste funil não aparecem na aba 💬 Conversas. Útil pra funis automáticos que não precisam de resposta manual."));
