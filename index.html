@@ -2899,21 +2899,23 @@ async function renderConversas() {
   catch (e) { console.warn("Conversas:", e); }
   // Nomes + configs dos funis (API + local) — respeita "Mostrar em Conversas"
   var nomesFluxos = {}, configsFluxos = {};
+  function parseCfg(c) {
+    if (typeof c === "string") { try { c = JSON.parse(c); } catch (e) { c = {}; } }
+    if (typeof c === "string") { try { c = JSON.parse(c); } catch (e) { c = {}; } }
+    return c && typeof c === "object" ? c : {};
+  }
   try {
     if (API_TOKEN && USUARIO) {
       const fluxosApi = await apiListarFluxos(USUARIO.id);
       if (fluxosApi && Array.isArray(fluxosApi)) fluxosApi.forEach(f => {
         nomesFluxos[f.id] = f.nome;
-        var cfg = f.config;
-        if (typeof cfg === "string") { try { cfg = JSON.parse(cfg); } catch (e) { cfg = {}; } }
-        configsFluxos[f.id] = cfg || {};
+        configsFluxos[f.id] = parseCfg(f.config);
       });
     }
   } catch (e) {}
   if (PROJETO && PROJETO.fluxos) PROJETO.fluxos.forEach(f => {
     if (!nomesFluxos[f.id]) nomesFluxos[f.id] = f.nome;
-    // Local só preenche se a API não trouxe esse funil (evita config local desatualizada)
-    if (!configsFluxos[f.id]) configsFluxos[f.id] = f.config || {};
+    if (!configsFluxos[f.id]) configsFluxos[f.id] = parseCfg(f.config);
   });
   carregando.remove();
   const porSessao = {};
@@ -2940,11 +2942,7 @@ async function renderConversas() {
   const funilVisivel = fid => {
     if (fid === "—") return false;
     var cfg = configsFluxos[fid];
-    if (!cfg) {
-      var fx = PROJETO && PROJETO.fluxos.find(f => f.id === fid);
-      cfg = fx ? (fx.config || {}) : null;
-    }
-    if (!cfg) return false;
+    if (!cfg || typeof cfg !== "object") return false;
     return cfg.mostrarEmConversas !== false;
   };
 
