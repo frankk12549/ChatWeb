@@ -3763,8 +3763,7 @@ function renderEditor() {
     convChk.checked = cfg.mostrarEmConversas !== false;
     convChk.onchange = function() {
       cfg.mostrarEmConversas = !!convChk.checked;
-      // Salva na hora pra Conversas respeitar imediatamente
-      try { salvar(true); toast(convChk.checked ? "✅ Mensagens deste funil vão aparecer em Conversas" : "🙈 Mensagens deste funil ocultas em Conversas"); } catch (e) {}
+      try { salvar(true); clearTimeout(_salvarNuvemTimer); salvarProjetoNuvem(); toast(convChk.checked ? "✅ Mensagens deste funil vão aparecer em Conversas" : "🙈 Mensagens deste funil ocultas em Conversas"); } catch (e) {}
     };
     var convLabel = h("label", { class: "chk", style: "cursor:pointer" }, convChk, " Mostrar mensagens nesta conversa");
     convSection.appendChild(h("label", { style: "font-size:12.5px;font-weight:600;margin-bottom:4px;display:block;color:#445" }, "📊 Conversas"));
@@ -4244,7 +4243,21 @@ async function carregarProjetoNuvem() {
   try {
     const fluxos = await apiListarFluxos(USUARIO.id);
     if (fluxos && Array.isArray(fluxos) && fluxos.length) {
-      PROJETO.fluxos = await Promise.all(fluxos.map(async f => {
+      // Dedup por nome+slug: mantém o mais recente, elimina duplicatas
+      var seen = {}, toDelete = [];
+      fluxos.forEach(function(f) {
+        var key = (f.nome || "") + "|||" + (f.slug || "");
+        if (seen[key]) {
+          var ts = new Date(f.atualizado_em || 0).getTime();
+          var existingTs = new Date(seen[key].atualizado_em || 0).getTime();
+          if (ts > existingTs) { toDelete.push(seen[key]); seen[key] = f; }
+          else { toDelete.push(f); }
+        } else { seen[key] = f; }
+      });
+      // Apaga duplicatas do Neon (fire-and-forget, não bloqueia)
+      toDelete.forEach(function(f) { if (f.id) { apiCall("DELETE", "fluxos?id=" + encodeURIComponent(f.id)); } });
+      var deduped = Object.values(seen);
+      PROJETO.fluxos = await Promise.all(deduped.map(async f => {
         var blocos = typeof f.blocos === "string" ? JSON.parse(f.blocos) : (f.blocos || []);
         try {
           var arq = await apiBuscarArquivos(f.id);
@@ -4257,7 +4270,7 @@ async function carregarProjetoNuvem() {
           publicado: f.publicado
         };
       }));
-      fluxos.forEach(f => { _fluxosSalvosNuvem[f.id] = true; });
+      deduped.forEach(f => { _fluxosSalvosNuvem[f.id] = true; });
       if (!PROJETO.atual || !PROJETO.fluxos.find(fx => fx.id === PROJETO.atual)) PROJETO.atual = PROJETO.fluxos[0].id;
       saneiaProjeto(); salvarLocal();
     } else {
