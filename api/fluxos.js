@@ -52,7 +52,10 @@ module.exports = async function handler(req, res) {
       const fid = id && typeof id === "string" && id.length > 3 ? id : "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
       const rows = await sql`INSERT INTO fluxos (id, projeto_id, owner_id, nome, slug, config, blocos)
-        VALUES (${fid}, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${JSON.stringify(config || {})}, ${JSON.stringify(blocos || [])})
+        VALUES (${fid}, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${JSON.stringify(config || {})}::jsonb, ${JSON.stringify(blocos || [])}::jsonb)
+        ON CONFLICT (id) DO UPDATE SET
+          nome = EXCLUDED.nome, slug = EXCLUDED.slug, config = EXCLUDED.config,
+          blocos = EXCLUDED.blocos, atualizado_em = now()
         RETURNING id, nome, slug, config, blocos, publicado, criado_em, atualizado_em`;
       return res.status(201).json(rows[0]);
     }
