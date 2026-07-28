@@ -61,12 +61,16 @@ module.exports = async function handler(req, res) {
       const fid = id && typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : uuidV4();
       debug.fid = fid;
 
-      const rows = await sql`INSERT INTO fluxos (id, projeto_id, owner_id, nome, slug, config, blocos)
-        VALUES (${fid}::uuid, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${sql.json(config)}, ${sql.json(blocos)})
+      const configStr = JSON.stringify(config || {}).replace(/'/g, "''");
+      const blocosStr = JSON.stringify(blocos || []).replace(/'/g, "''");
+      const nomeSafe = (nome || "Novo fluxo").replace(/'/g, "''");
+      const slugSafe = (slug || "").replace(/'/g, "''");
+      const rows = await sql.unsafe(`INSERT INTO fluxos (id, projeto_id, owner_id, nome, slug, config, blocos)
+        VALUES ('${fid}'::uuid, '${projeto_id}', '${user.id}', '${nomeSafe}', '${slugSafe}', '${configStr}'::jsonb, '${blocosStr}'::jsonb)
         ON CONFLICT (id) DO UPDATE SET
           nome = EXCLUDED.nome, slug = EXCLUDED.slug, config = EXCLUDED.config,
           blocos = EXCLUDED.blocos, atualizado_em = now()
-        RETURNING id, nome, slug, config, blocos, publicado, criado_em, atualizado_em`;
+        RETURNING id, nome, slug, config, blocos, publicado, criado_em, atualizado_em`);
       return res.status(201).json({ fluxo: rows[0], debug });
     }
 
