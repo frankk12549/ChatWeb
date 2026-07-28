@@ -2654,7 +2654,7 @@ async function renderAtividadeCompleta() {
   eventos.forEach(e => atos.push({ t: e.criado_em, tipo: "ev", sub: e.tipo, flow_id: e.fluxo_id || e.flow_id }));
   mensagens.forEach(m => {
     if (m.remetente === "cliente") atos.push({ t: m.criado_em, tipo: "msg", flow_id: m.fluxo_id || m.flow_id, texto: m.texto });
-    else if (m.remetente === "empresa") atos.push({ t: m.criado_em, tipo: "emp", flow_id: m.fluxo_id || m.flow_id });
+    else if (m.remetente === "empresa" || m.remetente === "fluxo") atos.push({ t: m.criado_em, tipo: "emp", flow_id: m.fluxo_id || m.flow_id });
   });
   atos.sort((a, b) => new Date(b.t) - new Date(a.t));
 
@@ -2935,6 +2935,8 @@ async function renderConversas() {
   const nomeDoFluxo = fid => nomesFluxos[fid] || (fid === "—" ? "Sem identificação" : "Funil " + fid.slice(0, 6));
   // Só mostra se mostrarEmConversas for explicitamente true (ou undefined = padrão true no CONFIG_PADRAO)
   // Se estiver false (desmarcado), NÃO aparece.
+  // Só mostra se mostrarEmConversas for explicitamente true (ou undefined = padrão true no CONFIG_PADRAO)
+  // Se estiver false (desmarcado), NÃO aparece.
   const funilVisivel = fid => {
     if (fid === "—") return false;
     var cfg = configsFluxos[fid];
@@ -2942,7 +2944,6 @@ async function renderConversas() {
       var fx = PROJETO && PROJETO.fluxos.find(f => f.id === fid);
       cfg = fx ? (fx.config || {}) : null;
     }
-    // Se não achou o funil, esconde (não vaza conversa de funil desconhecido)
     if (!cfg) return false;
     return cfg.mostrarEmConversas !== false;
   };
@@ -3022,7 +3023,7 @@ async function renderConversas() {
   }
   mostrar.forEach(s=>{
     var msgs=porSessao[s];var last=msgs[msgs.length-1];
-    var nome=nomeDoFluxo(info[s].fid);var prefixo=last.remetente==="empresa"?"Você: ":"";
+    var nome=nomeDoFluxo(info[s].fid);var prefixo=(last.remetente==="empresa"||last.remetente==="fluxo")?"Você: ":"";
     var nNaoLidas=contarNaoLidas(s);
     var item=h("div",{class:"fluxo-item",style:"cursor:pointer;display:flex;align-items:center;justify-content:space-between",onclick:()=>{if(s){lidasMap[s]=new Date().toISOString();salvarConvConfig();conversaSessao=s;renderConversas();edBody.scrollTop=0;}}},
       h("div",null,
@@ -3180,8 +3181,8 @@ async function renderConversa(sessao) {
           thread.appendChild(h("div", { class: "conv-date" }, sep));
           lastDate = dateStr;
         }
-        var isEmpresa = m.remetente === "empresa";
-        var sameSender = idx > 0 && isEmpresa === (linhas[idx - 1].remetente === "empresa");
+        var isEmpresa = m.remetente === "empresa" || m.remetente === "fluxo";
+        var sameSender = idx > 0 && isEmpresa === (linhas[idx - 1].remetente === "empresa" || linhas[idx - 1].remetente === "fluxo");
         var row = h("div", { class: "conv-row " + (isEmpresa ? "eu" : "cli") });
         // Avatar do lado do cliente (esquerda)
         if (!isEmpresa) {
