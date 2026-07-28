@@ -45,14 +45,21 @@ module.exports = async function handler(req, res) {
       const config = typeof body.config === "string" ? JSON.parse(body.config) : (body.config || {});
       const blocos = typeof body.blocos === "string" ? JSON.parse(body.blocos) : (body.blocos || []);
 
+      // Debug info
+      const debug = { bodyType: typeof req.body, bodyKeys: Object.keys(body).join(","), hasUser: !!user, userId: user?.id };
+
       let proj = await sql`SELECT id FROM projetos WHERE owner_id = ${user.id} LIMIT 1`;
+      debug.projSelectOk = true;
       if (!proj.length) {
         proj = await sql`INSERT INTO projetos (owner_id) VALUES (${user.id}) RETURNING id`;
+        debug.projInsertOk = true;
       }
       const projeto_id = proj[0].id;
+      debug.projeto_id = projeto_id;
 
       function uuidV4() { return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,function(c){var r=Math.random()*16|0;return(c==="x"?r:(r&0x3|0x8)).toString(16);}); }
       const fid = id && typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : uuidV4();
+      debug.fid = fid;
 
       const rows = await sql`INSERT INTO fluxos (id, projeto_id, owner_id, nome, slug, config, blocos)
         VALUES (${fid}::uuid, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${sql.json(config)}, ${sql.json(blocos)})
@@ -60,7 +67,7 @@ module.exports = async function handler(req, res) {
           nome = EXCLUDED.nome, slug = EXCLUDED.slug, config = EXCLUDED.config,
           blocos = EXCLUDED.blocos, atualizado_em = now()
         RETURNING id, nome, slug, config, blocos, publicado, criado_em, atualizado_em`;
-      return res.status(201).json(rows[0]);
+      return res.status(201).json({ fluxo: rows[0], debug });
     }
 
     if (req.method === "PUT") {
