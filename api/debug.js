@@ -9,27 +9,32 @@ module.exports = async function handler(req, res) {
 
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+
+    // Step 1: projetos
+    let step = "projetos-select";
+    let proj = await sql`SELECT id FROM projetos WHERE owner_id = '285d9053-dde1-442a-a6cd-187791714a55' LIMIT 1`;
+    
+    if (!proj.length) {
+      step = "projetos-insert";
+      proj = await sql`INSERT INTO projetos (owner_id) VALUES ('285d9053-dde1-442a-a6cd-187791714a55') RETURNING id`;
+    }
+    const projeto_id = proj[0].id;
+
+    // Step 2: fluxos insert with sql.json
+    step = "fluxos-insert";
     const config = body.config || {};
     const blocos = body.blocos || [];
+    const fid = crypto.randomUUID();
+    
+    const rows = await sql`INSERT INTO fluxos (id, projeto_id, owner_id, nome, slug, config, blocos)
+      VALUES (${fid}::uuid, ${projeto_id}, '285d9053-dde1-442a-a6cd-187791714a55', 'Debug', 'debug', ${sql.json(config)}, ${sql.json(blocos)})
+      ON CONFLICT (id) DO UPDATE SET nome = EXCLUDED.nome
+      RETURNING id, nome`;
 
-    const info = {
-      typeofConfig: typeof config,
-      typeofBlocos: typeof blocos,
-      configStr: JSON.stringify(config).substring(0, 100),
-      blocosStr: JSON.stringify(blocos).substring(0, 100),
-      bodyKeys: Object.keys(body)
-    };
+    await sql`DELETE FROM fluxos WHERE id = ${fid}`;
 
-    // Try raw sql.unsafe with explicit JSON string
-    const r = await sql.unsafe(
-      "INSERT INTO fluxos (id, projeto_id, owner_id, nome, slug, config, blocos) VALUES ($1::uuid, $2, $3, $4, $5, $6::jsonb, $7::jsonb) RETURNING id, nome",
-      ["00000000-0000-4000-8000-000000000099", "test", "285d9053-dde1-442a-a6cd-187791714a55", "debug", "", JSON.stringify(config), JSON.stringify(blocos)]
-    );
-
-    await sql`DELETE FROM fluxos WHERE id = '00000000-0000-4000-8000-000000000099'`;
-
-    return res.status(200).json({ ok: true, info, row: r[0] });
+    return res.status(200).json({ ok: true, step, projeto_id, row: rows[0] });
   } catch (e) {
-    return res.status(500).json({ erro: e.message, detail: e.detail || "", hint: e.hint || "" });
+    return res.status(500).json({ erro: e.message, step: arguments.callee?.name || "unknown" });
   }
 };
