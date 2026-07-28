@@ -48,8 +48,9 @@ module.exports = async function handler(req, res) {
       }
       const projeto_id = proj[0].id;
 
-      // Usa ID do cliente se fornecido, senão gera novo
-      const fid = id && typeof id === "string" && id.length > 3 ? id : "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      // Gera UUID válido para o id (coluna UUID no PostgreSQL)
+      function uuidV4() { return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,function(c){var r=Math.random()*16|0;return(c==="x"?r:(r&0x3|0x8)).toString(16);}); }
+      const fid = id && typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : uuidV4();
 
       const rows = await sql`INSERT INTO fluxos (id, projeto_id, owner_id, nome, slug, config, blocos)
         VALUES (${fid}, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${JSON.stringify(config || {})}::jsonb, ${JSON.stringify(blocos || [])}::jsonb)
