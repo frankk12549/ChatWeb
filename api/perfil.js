@@ -42,7 +42,7 @@ module.exports = async function handler(req, res) {
         await sql`UPDATE usuarios SET email = ${limpo} WHERE id = ${userId}`;
       }
       if (config_jsonb !== undefined) {
-        await sql`UPDATE usuarios SET config_jsonb = ${JSON.stringify(config_jsonb)}::jsonb WHERE id = ${userId}`;
+        await sql`UPDATE usuarios SET config_jsonb = ${sql.json(config_jsonb)} WHERE id = ${userId}`;
       }
       const rows = await sql`SELECT id, email, nome, dominio, config_jsonb FROM usuarios WHERE id = ${userId}`;
       return res.status(200).json(rows[0]);

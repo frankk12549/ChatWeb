@@ -19,6 +19,7 @@ module.exports = async function handler(req, res) {
       ultimo_login TIMESTAMPTZ,
       criado_em TIMESTAMPTZ DEFAULT now()
     )`;
+    await sql`ALTER TABLE usuarios ALTER COLUMN id SET DEFAULT gen_random_uuid()::text`;
     await sql`CREATE TABLE IF NOT EXISTS projetos (
       id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
       owner_id TEXT NOT NULL,

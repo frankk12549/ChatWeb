@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
       const fid = id && typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : uuidV4();
 
       const rows = await sql`INSERT INTO fluxos (id, projeto_id, owner_id, nome, slug, config, blocos)
-        VALUES (${fid}, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${JSON.stringify(config || {})}::jsonb, ${JSON.stringify(blocos || [])}::jsonb)
+        VALUES (${fid}, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${sql.json(config || {})}, ${sql.json(blocos || [])})
         ON CONFLICT (id) DO UPDATE SET
           nome = EXCLUDED.nome, slug = EXCLUDED.slug, config = EXCLUDED.config,
           blocos = EXCLUDED.blocos, atualizado_em = now()
@@ -70,8 +70,8 @@ module.exports = async function handler(req, res) {
       const rows = await sql`UPDATE fluxos SET
         nome = COALESCE(${nome}, nome),
         slug = COALESCE(${slug}, slug),
-        config = COALESCE(${config ? JSON.stringify(config) : null}::jsonb, config),
-        blocos = COALESCE(${blocos ? JSON.stringify(blocos) : null}::jsonb, blocos),
+        config = ${config ? sql.json(config) : sql`config`},
+        blocos = ${blocos ? sql.json(blocos) : sql`blocos`},
         publicado = COALESCE(${publicado}, publicado),
         atualizado_em = now()
         WHERE id = ${id} AND owner_id = ${user.id}
