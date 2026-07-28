@@ -9,7 +9,7 @@ module.exports = async function handler(req, res) {
 
   try {
     await sql`CREATE TABLE IF NOT EXISTS usuarios (
-      id TEXT PRIMARY KEY,
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
       email TEXT UNIQUE NOT NULL,
       nome TEXT DEFAULT '',
       senha_hash TEXT NOT NULL,
