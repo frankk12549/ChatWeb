@@ -4243,19 +4243,16 @@ async function carregarProjetoNuvem() {
   try {
     const fluxos = await apiListarFluxos(USUARIO.id);
     if (fluxos && Array.isArray(fluxos) && fluxos.length) {
-      // Dedup por nome+slug: mantém o mais recente, elimina duplicatas
-      var seen = {}, toDelete = [];
+      // Dedup por nome+slug: mantém o mais recente (só UI, NÃO apaga do banco)
+      var seen = {};
       fluxos.forEach(function(f) {
         var key = (f.nome || "") + "|||" + (f.slug || "");
         if (seen[key]) {
           var ts = new Date(f.atualizado_em || 0).getTime();
           var existingTs = new Date(seen[key].atualizado_em || 0).getTime();
-          if (ts > existingTs) { toDelete.push(seen[key]); seen[key] = f; }
-          else { toDelete.push(f); }
+          if (ts > existingTs) { seen[key] = f; }
         } else { seen[key] = f; }
       });
-      // Apaga duplicatas do Neon (fire-and-forget, não bloqueia)
-      toDelete.forEach(function(f) { if (f.id) { apiCall("DELETE", "fluxos?id=" + encodeURIComponent(f.id)); } });
       var deduped = Object.values(seen);
       PROJETO.fluxos = await Promise.all(deduped.map(async f => {
         var blocos = typeof f.blocos === "string" ? JSON.parse(f.blocos) : (f.blocos || []);
