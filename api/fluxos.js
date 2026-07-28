@@ -47,7 +47,7 @@ module.exports = async function handler(req, res) {
       const fid = id && typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : uuidV4();
 
       const rows = await sql`INSERT INTO fluxos (id, projeto_id, owner_id, nome, slug, config, blocos)
-        VALUES (${fid}::uuid, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${JSON.stringify(config || {})}::jsonb, ${JSON.stringify(blocos || [])}::jsonb)
+        VALUES (${fid}::uuid, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${sql.json(config || {})}, ${sql.json(blocos || [])})
         ON CONFLICT (id) DO UPDATE SET
           nome = EXCLUDED.nome, slug = EXCLUDED.slug, config = EXCLUDED.config,
           blocos = EXCLUDED.blocos, atualizado_em = now()
@@ -60,15 +60,21 @@ module.exports = async function handler(req, res) {
       const { id, nome, slug, config, blocos, publicado } = req.body || {};
       if (!id) return res.status(400).json({ erro: "ID obrigatorio." });
 
-      const rows = await sql`UPDATE fluxos SET
-        nome = COALESCE(${nome}, nome),
-        slug = COALESCE(${slug}, slug),
-        config = COALESCE(${config !== undefined ? JSON.stringify(config) : null}::jsonb, config),
-        blocos = COALESCE(${blocos !== undefined ? JSON.stringify(blocos) : null}::jsonb, blocos),
-        publicado = COALESCE(${publicado}, publicado),
-        atualizado_em = now()
-        WHERE id = ${id} AND owner_id = ${user.id}
-        RETURNING id, nome, slug, config, blocos, publicado, criado_em, atualizado_em`;
+      let sets = [];
+      let params = [];
+      let i = 1;
+      if (nome !== undefined) { sets.push(`nome = $${i++}`); params.push(nome); }
+      if (slug !== undefined) { sets.push(`slug = $${i++}`); params.push(slug); }
+      if (config !== undefined) { sets.push(`config = $${i}::jsonb`); params.push(JSON.stringify(config)); i++; }
+      if (blocos !== undefined) { sets.push(`blocos = $${i}::jsonb`); params.push(JSON.stringify(blocos)); i++; }
+      if (publicado !== undefined) { sets.push(`publicado = $${i++}`); params.push(publicado); }
+      if (sets.length === 0) return res.status(400).json({ erro: "Nada para atualizar." });
+      sets.push(`atualizado_em = now()`);
+      params.push(id, user.id);
+      const rows = await sql.unsafe(
+        `UPDATE fluxos SET ${sets.join(", ")} WHERE id = $${i++} AND owner_id = $${i} RETURNING id, nome, slug, config, blocos, publicado, criado_em, atualizado_em`,
+        params
+      );
       if (!rows.length) return res.status(404).json({ erro: "Fluxo nao encontrado." });
       return res.status(200).json(rows[0]);
     }
