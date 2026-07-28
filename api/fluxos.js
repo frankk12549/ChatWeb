@@ -109,6 +109,6 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ erro: "Metodo nao permitido." });
   } catch (e) {
     console.error("fluxos error:", e);
-    return res.status(500).json({ erro: "Erro interno.", detalhe: e.message || String(e) });
+    return res.status(500).json({ erro: "Erro interno.", detalhe: e.message || String(e), code: e.code, severity: e.severity, detail: e.detail, hint: e.hint, position: e.position });
   }
 };
