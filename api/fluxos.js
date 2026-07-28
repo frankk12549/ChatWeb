@@ -9,6 +9,11 @@ function verificarToken(req) {
   try { return jwt.verify(auth.slice(7), SECRET); } catch (e) { return null; }
 }
 
+function parseBody(req) {
+  if (req.body && typeof req.body === "object") return req.body;
+  return {};
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -35,7 +40,10 @@ module.exports = async function handler(req, res) {
 
     if (req.method === "POST") {
       if (!user) return res.status(401).json({ erro: "Nao autorizado." });
-      const { id, nome, slug, config, blocos } = req.body || {};
+      const body = parseBody(req);
+      const { id, nome, slug } = body;
+      const config = typeof body.config === "string" ? JSON.parse(body.config) : (body.config || {});
+      const blocos = typeof body.blocos === "string" ? JSON.parse(body.blocos) : (body.blocos || []);
 
       let proj = await sql`SELECT id FROM projetos WHERE owner_id = ${user.id} LIMIT 1`;
       if (!proj.length) {
@@ -47,7 +55,7 @@ module.exports = async function handler(req, res) {
       const fid = id && typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : uuidV4();
 
       const rows = await sql`INSERT INTO fluxos (id, projeto_id, owner_id, nome, slug, config, blocos)
-        VALUES (${fid}::uuid, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${sql.json(config || {})}, ${sql.json(blocos || [])})
+        VALUES (${fid}::uuid, ${projeto_id}, ${user.id}, ${nome || "Novo fluxo"}, ${slug || ""}, ${sql.json(config)}, ${sql.json(blocos)})
         ON CONFLICT (id) DO UPDATE SET
           nome = EXCLUDED.nome, slug = EXCLUDED.slug, config = EXCLUDED.config,
           blocos = EXCLUDED.blocos, atualizado_em = now()
@@ -57,7 +65,10 @@ module.exports = async function handler(req, res) {
 
     if (req.method === "PUT") {
       if (!user) return res.status(401).json({ erro: "Nao autorizado." });
-      const { id, nome, slug, config, blocos, publicado } = req.body || {};
+      const body = parseBody(req);
+      const { id, nome, slug, publicado } = body;
+      const config = body.config !== undefined ? (typeof body.config === "string" ? JSON.parse(body.config) : body.config) : undefined;
+      const blocos = body.blocos !== undefined ? (typeof body.blocos === "string" ? JSON.parse(body.blocos) : body.blocos) : undefined;
       if (!id) return res.status(400).json({ erro: "ID obrigatorio." });
 
       let sets = [];
