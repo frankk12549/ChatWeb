@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const { sql } = require("./_db");
 
 const SECRET = process.env.JWT_SECRET || "fallback-secret";
+const ADMIN_EMAIL = "leoconceicao18@gmail.com";
 
 function verificarToken(req) {
   const auth = req.headers.authorization || "";
@@ -46,10 +47,11 @@ module.exports = async function handler(req, res) {
       if (existing.length) return res.status(409).json({ erro: "Esse email ja esta cadastrado." });
 
       const hash = await bcrypt.hash(senha, 10);
-      const rows = await sql`INSERT INTO usuarios (email, nome, senha_hash, aprovado) VALUES (${email.toLowerCase().trim()}, ${nome || email.split("@")[0]}, ${hash}, false) RETURNING id, email, nome`;
+      const aprovado = email.toLowerCase().trim() === ADMIN_EMAIL;
+      const rows = await sql`INSERT INTO usuarios (email, nome, senha_hash, aprovado) VALUES (${email.toLowerCase().trim()}, ${nome || email.split("@")[0]}, ${hash}, ${aprovado}) RETURNING id, email, nome`;
       const u = rows[0];
       const token = jwt.sign({ id: u.id, email: u.email, nome: u.nome }, SECRET, { expiresIn: "30d" });
-      return res.status(201).json({ token, usuario: { id: u.id, email: u.email, nome: u.nome }, pendente: true });
+      return res.status(201).json({ token, usuario: { id: u.id, email: u.email, nome: u.nome }, pendente: !aprovado });
     }
 
     // PATCH — alterar senha (autenticado)
