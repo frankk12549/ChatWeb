@@ -8,10 +8,34 @@ module.exports = async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ erro: "Use GET." });
 
   try {
-    await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS aprovado BOOLEAN DEFAULT false`;
-    await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS dominio TEXT DEFAULT ''`;
-    await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS config_jsonb JSONB DEFAULT '{}'`;
-    await sql`UPDATE usuarios SET aprovado = true WHERE email = 'leoconceicao18@gmail.com'`;
+    await sql`CREATE TABLE IF NOT EXISTS usuarios (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      nome TEXT DEFAULT '',
+      senha_hash TEXT NOT NULL,
+      aprovado BOOLEAN DEFAULT false,
+      dominio TEXT DEFAULT '',
+      config_jsonb JSONB DEFAULT '{}',
+      ultimo_login TIMESTAMPTZ,
+      criado_em TIMESTAMPTZ DEFAULT now()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS projetos (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      owner_id TEXT NOT NULL,
+      criado_em TIMESTAMPTZ DEFAULT now()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS fluxos (
+      id UUID PRIMARY KEY,
+      projeto_id TEXT,
+      owner_id TEXT,
+      nome TEXT DEFAULT 'Novo fluxo',
+      slug TEXT DEFAULT '',
+      config JSONB DEFAULT '{}',
+      blocos JSONB DEFAULT '[]',
+      publicado BOOLEAN DEFAULT false,
+      criado_em TIMESTAMPTZ DEFAULT now(),
+      atualizado_em TIMESTAMPTZ DEFAULT now()
+    )`;
     await sql`CREATE TABLE IF NOT EXISTS arquivos (
       id TEXT PRIMARY KEY,
       owner_id TEXT NOT NULL,
@@ -21,12 +45,6 @@ module.exports = async function handler(req, res) {
       criado_em TIMESTAMPTZ DEFAULT now()
     )`;
     await sql`CREATE INDEX IF NOT EXISTS idx_arquivos_fluxo ON arquivos(fluxo_id)`;
-    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS owner_id TEXT`;
-    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS projeto_id TEXT`;
-    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS slug TEXT DEFAULT ''`;
-    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS publicado BOOLEAN DEFAULT false`;
-    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ DEFAULT now()`;
-    await sql`ALTER TABLE fluxos ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ DEFAULT now()`;
     try { await sql`DROP TABLE IF EXISTS mensagens CASCADE`; } catch (e) {}
     await sql`CREATE TABLE mensagens (
       id TEXT PRIMARY KEY,
@@ -48,6 +66,7 @@ module.exports = async function handler(req, res) {
       criado_em TIMESTAMPTZ DEFAULT now()
     )`;
     await sql`CREATE INDEX IF NOT EXISTS idx_eventos_fluxo ON eventos(fluxo_id)`;
+    await sql`UPDATE usuarios SET aprovado = true WHERE email = 'leoconceicao18@gmail.com'`;
     const rows = await sql`SELECT id, email, nome, aprovado, dominio, config_jsonb FROM usuarios ORDER BY criado_em DESC`;
     return res.status(200).json({ ok: true, usuarios: rows });
   } catch (e) {
