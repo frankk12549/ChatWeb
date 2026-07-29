@@ -19,17 +19,32 @@ module.exports = async function handler(req, res) {
     const user = verificarToken(req);
 
     if (req.method === "GET") {
-      const { slug, owner_id } = req.query || {};
+      const { slug, owner_id, with_arquivos } = req.query || {};
 
       if (slug) {
         const rows = await sql`SELECT id, nome, slug, config, blocos, publicado, owner_id FROM fluxos WHERE slug = ${slug} ORDER BY atualizado_em DESC NULLS LAST LIMIT 1`;
         if (!rows.length) return res.status(404).json({ erro: "Funil nao encontrado." });
-        return res.status(200).json(rows[0]);
+        const fluxo = rows[0];
+        if (with_arquivos === "1") {
+          const arqs = await sql`SELECT id, chave, dados FROM arquivos WHERE fluxo_id = ${fluxo.id}`;
+          fluxo.arquivos = Array.from(arqs);
+        }
+        return res.status(200).json(fluxo);
       }
 
       if (!user) return res.status(401).json({ erro: "Nao autorizado." });
       const oid = owner_id || user.id;
       const rows = await sql`SELECT id, nome, slug, config, blocos, publicado, criado_em, atualizado_em FROM fluxos WHERE owner_id = ${oid} ORDER BY atualizado_em DESC`;
+      if (with_arquivos === "1" && rows.length) {
+        const arqs = await sql`SELECT id, chave, dados, fluxo_id FROM arquivos WHERE fluxo_id IN (SELECT id::text FROM fluxos WHERE owner_id = ${oid})`;
+        const arqMap = {};
+        for (const a of arqs) {
+          if (!arqMap[a.fluxo_id]) arqMap[a.fluxo_id] = [];
+          arqMap[a.fluxo_id].push(a);
+        }
+        const result = rows.map(r => Object.assign({}, r, { arquivos: arqMap[r.id] || [] }));
+        return res.status(200).json(result);
+      }
       return res.status(200).json(rows.map(r => r));
     }
 

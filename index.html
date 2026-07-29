@@ -1091,7 +1091,7 @@ async function apiBuscarFluxoPorSlug(slug) {
   return await apiCall("GET", "fluxos?slug=" + encodeURIComponent(slug));
 }
 async function apiListarFluxos(ownerId) {
-  return await apiCall("GET", "fluxos?owner_id=" + encodeURIComponent(ownerId || ""));
+  return await apiCall("GET", "fluxos?owner_id=" + encodeURIComponent(ownerId || "") + "&with_arquivos=1");
 }
 async function apiSalvarFluxo(fluxo) {
   return await apiCall("POST", "fluxos", fluxo);
@@ -4254,19 +4254,16 @@ async function carregarProjetoNuvem() {
         } else { seen[key] = f; }
       });
       var deduped = Object.values(seen);
-      PROJETO.fluxos = await Promise.all(deduped.map(async f => {
+      PROJETO.fluxos = deduped.map(function(f) {
         var blocos = typeof f.blocos === "string" ? JSON.parse(f.blocos) : (f.blocos || []);
-        try {
-          var arq = await apiBuscarArquivos(f.id);
-          if (arq && arq.length) blocos = restaurarArquivos(blocos, arq);
-        } catch (e) {}
+        if (f.arquivos && f.arquivos.length) blocos = restaurarArquivos(blocos, f.arquivos);
         return {
           id: f.id, nome: f.nome, slug: f.slug || "",
           config: typeof f.config === "string" ? JSON.parse(f.config) : (f.config || {}),
           blocos: blocos,
           publicado: f.publicado
         };
-      }));
+      });
       deduped.forEach(f => { _fluxosSalvosNuvem[f.id] = true; });
       if (!PROJETO.atual || !PROJETO.fluxos.find(fx => fx.id === PROJETO.atual)) PROJETO.atual = PROJETO.fluxos[0].id;
       saneiaProjeto(); salvarLocal();

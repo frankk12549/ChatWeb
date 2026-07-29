@@ -46,6 +46,10 @@ module.exports = async function handler(req, res) {
       criado_em TIMESTAMPTZ DEFAULT now()
     )`;
     await sql`CREATE INDEX IF NOT EXISTS idx_arquivos_fluxo ON arquivos(fluxo_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_fluxos_slug ON fluxos(slug)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_fluxos_owner ON fluxos(owner_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_fluxos_atualizado ON fluxos(atualizado_em DESC NULLS LAST)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_projetos_owner ON projetos(owner_id)`;
     try { await sql`DROP TABLE IF EXISTS mensagens CASCADE`; } catch (e) {}
     await sql`CREATE TABLE mensagens (
       id TEXT PRIMARY KEY,
